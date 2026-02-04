@@ -913,8 +913,10 @@
 
         // ============ STARS (Random positions) ============
         let stars = [];
+        let trees = [];
         function generateStars() {
             stars = [];
+            trees = [];
             const horizonY = canvas.height * 0.5;
             for (let i = 0; i < 150; i++) {
                 stars.push({
@@ -923,6 +925,14 @@
                     size: 0.5 + Math.random() * 2,
                     twinkle: Math.random() * Math.PI * 2,
                     twinkleSpeed: 0.02 + Math.random() * 0.03
+                });
+            }
+            // Generate static trees
+            for (let x = 0; x < canvas.width + 40; x += 25 + Math.random() * 15) {
+                trees.push({
+                    x: x,
+                    height: 40 + Math.sin(x * 0.02) * 20 + Math.random() * 30,
+                    width: 15 + Math.random() * 10
                 });
             }
         }
@@ -1378,19 +1388,16 @@
             ctx.lineTo(canvas.width, horizonY);
             ctx.fill();
 
-            // Pine tree forest silhouette
+            // Pine tree forest silhouette (pre-generated for stability)
             ctx.fillStyle = '#0d1d14';
-            for (let x = 0; x < canvas.width; x += 25 + Math.random() * 15) {
-                const treeHeight = 40 + Math.sin(x * 0.02) * 20 + Math.random() * 30;
-                const treeWidth = 15 + Math.random() * 10;
-                const baseY = horizonY + 10;
-
+            const baseY = horizonY + 10;
+            trees.forEach(tree => {
                 ctx.beginPath();
-                ctx.moveTo(x, baseY);
-                ctx.lineTo(x + treeWidth / 2, baseY - treeHeight);
-                ctx.lineTo(x + treeWidth, baseY);
+                ctx.moveTo(tree.x, baseY);
+                ctx.lineTo(tree.x + tree.width / 2, baseY - tree.height);
+                ctx.lineTo(tree.x + tree.width, baseY);
                 ctx.fill();
-            }
+            });
 
             // Grassy savanna ground
             const groundGradient = ctx.createLinearGradient(0, horizonY, 0, canvas.height);
