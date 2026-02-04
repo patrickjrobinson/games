@@ -1260,18 +1260,32 @@
         // ============ ANIMAL CLASS ============
         class Animal {
             constructor(type) {
-                this.type = type; // 'robotdog' or 'zebra'
+                this.type = type;
                 this.direction = Math.random() < 0.5 ? 1 : -1;
                 this.x = this.direction === 1 ? -100 : canvas.width + 100;
-                this.y = canvas.height * 0.7 + Math.random() * (canvas.height * 0.2);
-                this.speed = type === 'robotdog' ? (4 + Math.random() * 2) : (1.5 + Math.random());
                 this.frame = 0;
                 this.frameTimer = 0;
                 this.hit = false;
-                this.size = type === 'robotdog' ? 35 : 60;
-                this.hopOffset = 0;
-                this.hopSpeed = type === 'robotdog' ? 0.25 : 0.1;
                 this.glowPhase = Math.random() * Math.PI * 2;
+
+                // Type-specific properties
+                const animalProps = {
+                    robotdog: { speed: 4 + Math.random() * 2, size: 35, hopSpeed: 0.25, groundY: 0.75 },
+                    zebra: { speed: 1.5 + Math.random(), size: 60, hopSpeed: 0.1, groundY: 0.72 },
+                    giraffe: { speed: 1.2 + Math.random() * 0.5, size: 80, hopSpeed: 0.08, groundY: 0.65 },
+                    lion: { speed: 2.5 + Math.random(), size: 50, hopSpeed: 0.15, groundY: 0.75 },
+                    tiger: { speed: 2.8 + Math.random(), size: 50, hopSpeed: 0.15, groundY: 0.75 },
+                    bird: { speed: 3 + Math.random() * 2, size: 25, hopSpeed: 0.3, groundY: 0.35 },
+                    snake: { speed: 1 + Math.random() * 0.5, size: 40, hopSpeed: 0.4, groundY: 0.85 },
+                    elephant: { speed: 0.8 + Math.random() * 0.3, size: 90, hopSpeed: 0.05, groundY: 0.7 }
+                };
+
+                const props = animalProps[type] || animalProps.zebra;
+                this.speed = props.speed;
+                this.size = props.size;
+                this.hopSpeed = props.hopSpeed;
+                this.y = canvas.height * props.groundY + Math.random() * (canvas.height * 0.1);
+                this.hopOffset = 0;
             }
 
             update(deltaTime) {
@@ -1285,8 +1299,9 @@
                 }
                 this.glowPhase += 0.1 * deltaTime * 60;
 
-                // Running motion (less bouncy than hopping)
-                this.hopOffset = Math.abs(Math.sin(this.x * this.hopSpeed)) * (this.type === 'robotdog' ? 8 : 10);
+                // Movement animation
+                const hopAmount = this.type === 'bird' ? 15 : (this.type === 'snake' ? 2 : 8);
+                this.hopOffset = Math.abs(Math.sin(this.x * this.hopSpeed)) * hopAmount;
 
                 // Remove if off screen
                 if (this.direction === 1 && this.x > canvas.width + 150) return true;
@@ -1380,16 +1395,12 @@
                     ctx.moveTo(-this.size * 0.5, 0);
                     ctx.lineTo(-this.size * 0.7, -this.size * 0.2);
                     ctx.stroke();
-                } else {
+                } else if (this.type === 'zebra') {
                     // Zebra
                     ctx.fillStyle = '#FFF';
-
-                    // Body
                     ctx.beginPath();
                     ctx.ellipse(0, 0, this.size * 0.8, this.size * 0.4, 0, 0, Math.PI * 2);
                     ctx.fill();
-
-                    // Stripes
                     ctx.strokeStyle = '#000';
                     ctx.lineWidth = 3;
                     for (let i = -3; i <= 3; i++) {
@@ -1398,8 +1409,6 @@
                         ctx.lineTo(i * 12 - 5, this.size * 0.35);
                         ctx.stroke();
                     }
-
-                    // Neck
                     ctx.fillStyle = '#FFF';
                     ctx.beginPath();
                     ctx.moveTo(this.size * 0.5, -this.size * 0.2);
@@ -1407,59 +1416,282 @@
                     ctx.lineTo(this.size * 0.9, -this.size * 0.7);
                     ctx.lineTo(this.size * 0.7, -this.size * 0.1);
                     ctx.fill();
-
-                    // Neck stripes
-                    ctx.strokeStyle = '#000';
-                    ctx.lineWidth = 2;
-                    ctx.beginPath();
-                    ctx.moveTo(this.size * 0.55, -this.size * 0.35);
-                    ctx.lineTo(this.size * 0.75, -this.size * 0.45);
-                    ctx.stroke();
-                    ctx.beginPath();
-                    ctx.moveTo(this.size * 0.6, -this.size * 0.5);
-                    ctx.lineTo(this.size * 0.8, -this.size * 0.6);
-                    ctx.stroke();
-
-                    // Head
                     ctx.fillStyle = '#FFF';
                     ctx.beginPath();
                     ctx.ellipse(this.size * 0.85, -this.size * 0.85, this.size * 0.25, this.size * 0.15, 0.5, 0, Math.PI * 2);
                     ctx.fill();
-
-                    // Mane
-                    ctx.fillStyle = '#333';
-                    ctx.fillRect(this.size * 0.55, -this.size * 0.9, this.size * 0.25, 8);
-
-                    // Eye
                     ctx.fillStyle = '#000';
                     ctx.beginPath();
                     ctx.arc(this.size * 0.9, -this.size * 0.85, 3, 0, Math.PI * 2);
                     ctx.fill();
-
-                    // Legs
-                    ctx.fillStyle = '#FFF';
-                    ctx.strokeStyle = '#000';
-                    ctx.lineWidth = 1;
                     const legOffset = Math.sin(this.frame * Math.PI / 2) * 8;
-
-                    // Front legs
+                    ctx.fillStyle = '#FFF';
                     ctx.fillRect(this.size * 0.3, this.size * 0.25, 8, 35 + legOffset);
-                    ctx.strokeRect(this.size * 0.3, this.size * 0.25, 8, 35 + legOffset);
                     ctx.fillRect(this.size * 0.45, this.size * 0.25, 8, 35 - legOffset);
-                    ctx.strokeRect(this.size * 0.45, this.size * 0.25, 8, 35 - legOffset);
-
-                    // Back legs
                     ctx.fillRect(-this.size * 0.5, this.size * 0.25, 8, 35 - legOffset);
-                    ctx.strokeRect(-this.size * 0.5, this.size * 0.25, 8, 35 - legOffset);
                     ctx.fillRect(-this.size * 0.35, this.size * 0.25, 8, 35 + legOffset);
-                    ctx.strokeRect(-this.size * 0.35, this.size * 0.25, 8, 35 + legOffset);
 
-                    // Tail
-                    ctx.strokeStyle = '#333';
+                } else if (this.type === 'giraffe') {
+                    // Giraffe - tall with spots
+                    ctx.fillStyle = '#DAA520';
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, this.size * 0.5, this.size * 0.3, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Spots
+                    ctx.fillStyle = '#8B4513';
+                    for (let i = 0; i < 5; i++) {
+                        ctx.beginPath();
+                        ctx.arc(-this.size * 0.3 + i * 12, Math.sin(i) * 8, 5, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                    // Long neck
+                    ctx.fillStyle = '#DAA520';
+                    ctx.beginPath();
+                    ctx.moveTo(this.size * 0.3, -this.size * 0.2);
+                    ctx.lineTo(this.size * 0.4, -this.size * 1.2);
+                    ctx.lineTo(this.size * 0.6, -this.size * 1.2);
+                    ctx.lineTo(this.size * 0.5, -this.size * 0.1);
+                    ctx.fill();
+                    // Head
+                    ctx.beginPath();
+                    ctx.ellipse(this.size * 0.5, -this.size * 1.3, this.size * 0.15, this.size * 0.12, 0.3, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Horns
+                    ctx.strokeStyle = '#8B4513';
                     ctx.lineWidth = 3;
                     ctx.beginPath();
-                    ctx.moveTo(-this.size * 0.7, -this.size * 0.1);
-                    ctx.quadraticCurveTo(-this.size * 0.9, this.size * 0.2, -this.size * 0.85, this.size * 0.4);
+                    ctx.moveTo(this.size * 0.45, -this.size * 1.35);
+                    ctx.lineTo(this.size * 0.42, -this.size * 1.5);
+                    ctx.moveTo(this.size * 0.55, -this.size * 1.35);
+                    ctx.lineTo(this.size * 0.58, -this.size * 1.5);
+                    ctx.stroke();
+                    // Eye
+                    ctx.fillStyle = '#000';
+                    ctx.beginPath();
+                    ctx.arc(this.size * 0.55, -this.size * 1.3, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Legs
+                    ctx.fillStyle = '#DAA520';
+                    const gLeg = Math.sin(this.frame * Math.PI / 2) * 6;
+                    ctx.fillRect(this.size * 0.15, this.size * 0.2, 7, 50 + gLeg);
+                    ctx.fillRect(this.size * 0.3, this.size * 0.2, 7, 50 - gLeg);
+                    ctx.fillRect(-this.size * 0.35, this.size * 0.2, 7, 50 - gLeg);
+                    ctx.fillRect(-this.size * 0.2, this.size * 0.2, 7, 50 + gLeg);
+
+                } else if (this.type === 'lion') {
+                    // Lion - golden with mane
+                    ctx.fillStyle = '#D4A84B';
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, this.size * 0.6, this.size * 0.35, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Mane
+                    ctx.fillStyle = '#8B6914';
+                    ctx.beginPath();
+                    ctx.arc(this.size * 0.4, -this.size * 0.1, this.size * 0.4, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Head
+                    ctx.fillStyle = '#D4A84B';
+                    ctx.beginPath();
+                    ctx.arc(this.size * 0.45, -this.size * 0.1, this.size * 0.25, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Eyes
+                    ctx.fillStyle = '#000';
+                    ctx.beginPath();
+                    ctx.arc(this.size * 0.5, -this.size * 0.15, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Nose
+                    ctx.fillStyle = '#654321';
+                    ctx.beginPath();
+                    ctx.arc(this.size * 0.6, -this.size * 0.05, 4, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Legs
+                    ctx.fillStyle = '#D4A84B';
+                    const lLeg = Math.sin(this.frame * Math.PI / 2) * 8;
+                    ctx.fillRect(this.size * 0.2, this.size * 0.2, 10, 25 + lLeg);
+                    ctx.fillRect(this.size * 0.35, this.size * 0.2, 10, 25 - lLeg);
+                    ctx.fillRect(-this.size * 0.45, this.size * 0.2, 10, 25 - lLeg);
+                    ctx.fillRect(-this.size * 0.3, this.size * 0.2, 10, 25 + lLeg);
+                    // Tail
+                    ctx.strokeStyle = '#D4A84B';
+                    ctx.lineWidth = 4;
+                    ctx.beginPath();
+                    ctx.moveTo(-this.size * 0.55, 0);
+                    ctx.quadraticCurveTo(-this.size * 0.8, -this.size * 0.3, -this.size * 0.7, -this.size * 0.5);
+                    ctx.stroke();
+                    ctx.fillStyle = '#8B6914';
+                    ctx.beginPath();
+                    ctx.arc(-this.size * 0.7, -this.size * 0.5, 6, 0, Math.PI * 2);
+                    ctx.fill();
+
+                } else if (this.type === 'tiger') {
+                    // Tiger - orange with stripes
+                    ctx.fillStyle = '#FF8C00';
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, this.size * 0.6, this.size * 0.35, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Stripes
+                    ctx.strokeStyle = '#000';
+                    ctx.lineWidth = 3;
+                    for (let i = -2; i <= 2; i++) {
+                        ctx.beginPath();
+                        ctx.moveTo(i * 15, -this.size * 0.3);
+                        ctx.lineTo(i * 15 - 3, this.size * 0.3);
+                        ctx.stroke();
+                    }
+                    // Head
+                    ctx.fillStyle = '#FF8C00';
+                    ctx.beginPath();
+                    ctx.arc(this.size * 0.5, -this.size * 0.05, this.size * 0.25, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Ears
+                    ctx.beginPath();
+                    ctx.arc(this.size * 0.4, -this.size * 0.25, 8, 0, Math.PI * 2);
+                    ctx.arc(this.size * 0.6, -this.size * 0.25, 8, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Face stripes
+                    ctx.strokeStyle = '#000';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(this.size * 0.45, -this.size * 0.15);
+                    ctx.lineTo(this.size * 0.35, -this.size * 0.1);
+                    ctx.moveTo(this.size * 0.55, -this.size * 0.15);
+                    ctx.lineTo(this.size * 0.65, -this.size * 0.1);
+                    ctx.stroke();
+                    // Eyes
+                    ctx.fillStyle = '#000';
+                    ctx.beginPath();
+                    ctx.arc(this.size * 0.55, -this.size * 0.08, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Legs
+                    ctx.fillStyle = '#FF8C00';
+                    const tLeg = Math.sin(this.frame * Math.PI / 2) * 8;
+                    ctx.fillRect(this.size * 0.2, this.size * 0.2, 10, 25 + tLeg);
+                    ctx.fillRect(this.size * 0.35, this.size * 0.2, 10, 25 - tLeg);
+                    ctx.fillRect(-this.size * 0.45, this.size * 0.2, 10, 25 - tLeg);
+                    ctx.fillRect(-this.size * 0.3, this.size * 0.2, 10, 25 + tLeg);
+
+                } else if (this.type === 'bird') {
+                    // Bird - flying through sky
+                    const wingFlap = Math.sin(this.glowPhase * 3) * 15;
+                    ctx.fillStyle = '#4169E1';
+                    // Body
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, this.size * 0.6, this.size * 0.25, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Wings
+                    ctx.beginPath();
+                    ctx.moveTo(-this.size * 0.2, 0);
+                    ctx.lineTo(0, -this.size * 0.5 - wingFlap);
+                    ctx.lineTo(this.size * 0.2, 0);
+                    ctx.fill();
+                    // Head
+                    ctx.beginPath();
+                    ctx.arc(this.size * 0.5, -this.size * 0.1, this.size * 0.2, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Beak
+                    ctx.fillStyle = '#FFA500';
+                    ctx.beginPath();
+                    ctx.moveTo(this.size * 0.65, -this.size * 0.1);
+                    ctx.lineTo(this.size * 0.9, -this.size * 0.05);
+                    ctx.lineTo(this.size * 0.65, 0);
+                    ctx.fill();
+                    // Eye
+                    ctx.fillStyle = '#000';
+                    ctx.beginPath();
+                    ctx.arc(this.size * 0.55, -this.size * 0.15, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Tail feathers
+                    ctx.fillStyle = '#4169E1';
+                    ctx.beginPath();
+                    ctx.moveTo(-this.size * 0.5, 0);
+                    ctx.lineTo(-this.size * 0.9, -this.size * 0.15);
+                    ctx.lineTo(-this.size * 0.85, 0);
+                    ctx.lineTo(-this.size * 0.9, this.size * 0.15);
+                    ctx.fill();
+
+                } else if (this.type === 'snake') {
+                    // Snake - slithering
+                    ctx.strokeStyle = '#228B22';
+                    ctx.lineWidth = this.size * 0.2;
+                    ctx.lineCap = 'round';
+                    ctx.beginPath();
+                    ctx.moveTo(-this.size, 0);
+                    for (let i = 0; i < 8; i++) {
+                        const sx = -this.size + i * (this.size * 0.3);
+                        const sy = Math.sin(this.glowPhase * 2 + i * 0.8) * 8;
+                        ctx.lineTo(sx, sy);
+                    }
+                    ctx.stroke();
+                    // Head
+                    ctx.fillStyle = '#228B22';
+                    ctx.beginPath();
+                    ctx.ellipse(this.size * 0.4, Math.sin(this.glowPhase * 2 + 6) * 5, this.size * 0.2, this.size * 0.15, 0.2, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Eyes
+                    ctx.fillStyle = '#FF0000';
+                    ctx.beginPath();
+                    ctx.arc(this.size * 0.5, Math.sin(this.glowPhase * 2 + 6) * 5 - 4, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Tongue
+                    ctx.strokeStyle = '#FF0000';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(this.size * 0.55, Math.sin(this.glowPhase * 2 + 6) * 5);
+                    ctx.lineTo(this.size * 0.7, Math.sin(this.glowPhase * 2 + 6) * 5 - 3);
+                    ctx.moveTo(this.size * 0.65, Math.sin(this.glowPhase * 2 + 6) * 5 - 2);
+                    ctx.lineTo(this.size * 0.7, Math.sin(this.glowPhase * 2 + 6) * 5 + 3);
+                    ctx.stroke();
+
+                } else if (this.type === 'elephant') {
+                    // Elephant - big and gray
+                    ctx.fillStyle = '#808080';
+                    // Body
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, this.size * 0.6, this.size * 0.45, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Head
+                    ctx.beginPath();
+                    ctx.arc(this.size * 0.5, -this.size * 0.15, this.size * 0.35, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Ears
+                    ctx.fillStyle = '#696969';
+                    ctx.beginPath();
+                    ctx.ellipse(this.size * 0.35, -this.size * 0.1, this.size * 0.2, this.size * 0.3, -0.3, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Trunk
+                    ctx.fillStyle = '#808080';
+                    ctx.strokeStyle = '#808080';
+                    ctx.lineWidth = 12;
+                    ctx.lineCap = 'round';
+                    ctx.beginPath();
+                    ctx.moveTo(this.size * 0.7, 0);
+                    ctx.quadraticCurveTo(this.size * 0.9, this.size * 0.3, this.size * 0.75, this.size * 0.5);
+                    ctx.stroke();
+                    // Eye
+                    ctx.fillStyle = '#000';
+                    ctx.beginPath();
+                    ctx.arc(this.size * 0.6, -this.size * 0.2, 4, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Tusks
+                    ctx.fillStyle = '#FFFFF0';
+                    ctx.beginPath();
+                    ctx.moveTo(this.size * 0.55, this.size * 0.05);
+                    ctx.lineTo(this.size * 0.75, this.size * 0.2);
+                    ctx.lineTo(this.size * 0.55, this.size * 0.15);
+                    ctx.fill();
+                    // Legs
+                    ctx.fillStyle = '#808080';
+                    const eLeg = Math.sin(this.frame * Math.PI / 2) * 5;
+                    ctx.fillRect(this.size * 0.15, this.size * 0.3, 15, 40 + eLeg);
+                    ctx.fillRect(this.size * 0.35, this.size * 0.3, 15, 40 - eLeg);
+                    ctx.fillRect(-this.size * 0.5, this.size * 0.3, 15, 40 - eLeg);
+                    ctx.fillRect(-this.size * 0.3, this.size * 0.3, 15, 40 + eLeg);
+                    // Tail
+                    ctx.strokeStyle = '#808080';
+                    ctx.lineWidth = 4;
+                    ctx.beginPath();
+                    ctx.moveTo(-this.size * 0.55, 0);
+                    ctx.lineTo(-this.size * 0.75, this.size * 0.3);
                     ctx.stroke();
                 }
 
@@ -2082,7 +2314,22 @@
         }
 
         function spawnAnimal() {
-            const type = Math.random() < 0.3 ? 'robotdog' : 'zebra';
+            // Robot dogs are rare (give laser power-up)
+            if (Math.random() < 0.15) {
+                animals.push(new Animal('robotdog'));
+                return;
+            }
+
+            // Other animals unlock as waves progress
+            const availableAnimals = ['zebra'];
+            if (wave >= 2) availableAnimals.push('giraffe');
+            if (wave >= 3) availableAnimals.push('lion');
+            if (wave >= 4) availableAnimals.push('bird');
+            if (wave >= 5) availableAnimals.push('tiger');
+            if (wave >= 6) availableAnimals.push('snake');
+            if (wave >= 7) availableAnimals.push('elephant');
+
+            const type = availableAnimals[Math.floor(Math.random() * availableAnimals.length)];
             animals.push(new Animal(type));
         }
 
@@ -2244,11 +2491,11 @@
                     animalSpawnTimer = 8 + Math.random() * 7; // Every 8-15 seconds
                 }
 
-                // Spawn aliens occasionally
+                // Spawn aliens sporadically (wide random range)
                 alienSpawnTimer -= deltaTime;
                 if (alienSpawnTimer <= 0) {
                     spawnAlien();
-                    alienSpawnTimer = 12 + Math.random() * 10; // Every 12-22 seconds
+                    alienSpawnTimer = 8 + Math.random() * 30; // Every 8-38 seconds (very random)
                 }
 
                 // Update aliens
