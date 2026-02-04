@@ -645,6 +645,84 @@
                     osc.stop(now + i * 0.1 + 0.15);
                 });
             }
+
+            if (type === 'loseLife') {
+                // Painful hit sound - low thud with alarm
+                const thud = audioCtx.createOscillator();
+                thud.type = 'sine';
+                thud.frequency.setValueAtTime(80, now);
+                thud.frequency.exponentialRampToValueAtTime(40, now + 0.3);
+                const thudGain = audioCtx.createGain();
+                thudGain.gain.setValueAtTime(0.5, now);
+                thudGain.gain.linearRampToValueAtTime(0, now + 0.3);
+                thud.connect(thudGain);
+                thudGain.connect(audioCtx.destination);
+                thud.start(now);
+                thud.stop(now + 0.3);
+
+                // Warning beep
+                const beep = audioCtx.createOscillator();
+                beep.type = 'square';
+                beep.frequency.value = 220;
+                const beepGain = audioCtx.createGain();
+                beepGain.gain.setValueAtTime(0.2, now);
+                beepGain.gain.linearRampToValueAtTime(0, now + 0.1);
+                beep.connect(beepGain);
+                beepGain.connect(audioCtx.destination);
+                beep.start(now);
+                beep.stop(now + 0.1);
+
+                // Second beep
+                const beep2 = audioCtx.createOscillator();
+                beep2.type = 'square';
+                beep2.frequency.value = 180;
+                const beep2Gain = audioCtx.createGain();
+                beep2Gain.gain.setValueAtTime(0.2, now + 0.15);
+                beep2Gain.gain.linearRampToValueAtTime(0, now + 0.25);
+                beep2.connect(beep2Gain);
+                beep2Gain.connect(audioCtx.destination);
+                beep2.start(now + 0.15);
+                beep2.stop(now + 0.25);
+            }
+
+            if (type === 'gameOver') {
+                // Dramatic game over sound - descending doom
+                const notes = [392, 349, 294, 220, 147]; // G4 down to D3
+                notes.forEach((freq, i) => {
+                    const osc = audioCtx.createOscillator();
+                    osc.type = 'sawtooth';
+                    osc.frequency.value = freq;
+
+                    const filter = audioCtx.createBiquadFilter();
+                    filter.type = 'lowpass';
+                    filter.frequency.value = 600;
+
+                    const gain = audioCtx.createGain();
+                    const startTime = now + i * 0.2;
+                    gain.gain.setValueAtTime(0.25, startTime);
+                    gain.gain.linearRampToValueAtTime(0.15, startTime + 0.15);
+                    gain.gain.linearRampToValueAtTime(0, startTime + 0.25);
+
+                    osc.connect(filter);
+                    filter.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(startTime);
+                    osc.stop(startTime + 0.3);
+                });
+
+                // Final low boom
+                const boom = audioCtx.createOscillator();
+                boom.type = 'sine';
+                boom.frequency.setValueAtTime(60, now + 1);
+                boom.frequency.exponentialRampToValueAtTime(30, now + 1.5);
+                const boomGain = audioCtx.createGain();
+                boomGain.gain.setValueAtTime(0.4, now + 1);
+                boomGain.gain.linearRampToValueAtTime(0, now + 1.5);
+                boom.connect(boomGain);
+                boomGain.connect(audioCtx.destination);
+                boom.start(now + 1);
+                boom.stop(now + 1.5);
+            }
         }
 
         // ============ GAME SETUP ============
@@ -1323,6 +1401,7 @@
             lives--;
             updateLives();
             screenShake = 0.5;
+            playSound('loseLife');
             if (lives <= 0) gameOver();
         }
 
@@ -1330,6 +1409,7 @@
             gameState = 'gameOver';
             laserActive = false;
             stopMusic();
+            playSound('gameOver');
             document.getElementById('finalScore').textContent = 'SCORE: ' + score;
             document.getElementById('waveReached').textContent = 'REACHED WAVE ' + wave;
             document.getElementById('gameOverScreen').classList.remove('hidden');
