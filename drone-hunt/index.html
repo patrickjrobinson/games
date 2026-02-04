@@ -378,6 +378,74 @@
             pointer-events: none;
         }
 
+        /* Pause button - same style as fullscreen */
+        #pauseBtn {
+            position: fixed;
+            bottom: 15px;
+            right: 55px;
+            width: 32px;
+            height: 32px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            color: rgba(255, 255, 255, 0.7);
+            cursor: pointer;
+            z-index: 90;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            transition: all 0.2s ease;
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+        }
+
+        #pauseBtn:hover {
+            background: rgba(0, 0, 0, 0.7);
+            border-color: rgba(255, 255, 255, 0.4);
+            color: rgba(255, 255, 255, 0.95);
+        }
+
+        #pauseBtn:active {
+            transform: scale(0.95);
+        }
+
+        #pauseBtn svg {
+            pointer-events: none;
+        }
+
+        /* Pause overlay */
+        #pauseOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 80;
+            backdrop-filter: blur(3px);
+            -webkit-backdrop-filter: blur(3px);
+        }
+
+        #pauseOverlay.visible {
+            display: flex;
+        }
+
+        #pauseText {
+            color: #0ff;
+            font-size: 36px;
+            text-shadow: 0 0 20px #0ff;
+            animation: pausePulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pausePulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
         @media (max-width: 768px) {
             #fullscreenBtn {
                 bottom: 10px;
@@ -388,6 +456,19 @@
             #fullscreenBtn svg {
                 width: 14px;
                 height: 14px;
+            }
+            #pauseBtn {
+                bottom: 10px;
+                right: 45px;
+                width: 28px;
+                height: 28px;
+            }
+            #pauseBtn svg {
+                width: 14px;
+                height: 14px;
+            }
+            #pauseText {
+                font-size: 24px;
             }
         }
     </style>
@@ -405,6 +486,21 @@
             <path fill="currentColor" d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/>
         </svg>
     </button>
+
+    <!-- Pause button -->
+    <button id="pauseBtn" title="Pause game" style="display:none;">
+        <svg id="pauseIcon" viewBox="0 0 24 24" width="18" height="18">
+            <path fill="currentColor" d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+        </svg>
+        <svg id="playIcon" viewBox="0 0 24 24" width="18" height="18" style="display:none;">
+            <path fill="currentColor" d="M8 5v14l11-7z"/>
+        </svg>
+    </button>
+
+    <!-- Pause overlay -->
+    <div id="pauseOverlay">
+        <div id="pauseText">PAUSED</div>
+    </div>
 
     <div id="ui">
         <div class="ui-box">
@@ -842,6 +938,7 @@
 
         // ============ GAME STATE ============
         let gameState = 'start';
+        let isPaused = false;
         let score = 0;
         let lives = 3;
         let wave = 1;
@@ -1493,12 +1590,15 @@
 
         function gameOver() {
             gameState = 'gameOver';
+            isPaused = false;
             laserActive = false;
             stopMusic();
             playSound('gameOver');
             document.getElementById('finalScore').textContent = 'SCORE: ' + score;
             document.getElementById('waveReached').textContent = 'REACHED WAVE ' + wave;
             document.getElementById('gameOverScreen').classList.remove('hidden');
+            document.getElementById('pauseBtn').style.display = 'none';
+            document.getElementById('pauseOverlay').classList.remove('visible');
         }
 
         function startGame() {
@@ -1511,6 +1611,7 @@
             startMusic();
 
             gameState = 'playing';
+            isPaused = false;
             score = 0;
             lives = 3;
             drones = [];
@@ -1525,6 +1626,9 @@
 
             document.getElementById('startScreen').classList.add('hidden');
             document.getElementById('gameOverScreen').classList.add('hidden');
+            document.getElementById('pauseBtn').style.display = 'flex';
+            document.getElementById('pauseOverlay').classList.remove('visible');
+            updatePauseButton();
 
             startWave(1);
         }
@@ -1534,11 +1638,11 @@
         let laserBeams = [];
 
         function gameLoop(timestamp) {
-            const deltaTime = Math.min((timestamp - lastTime) / 1000, 0.05);
+            const deltaTime = isPaused ? 0 : Math.min((timestamp - lastTime) / 1000, 0.05);
             lastTime = timestamp;
 
             ctx.save();
-            if (screenShake > 0) {
+            if (screenShake > 0 && !isPaused) {
                 ctx.translate(
                     (Math.random() - 0.5) * screenShake * 20,
                     (Math.random() - 0.5) * screenShake * 20
@@ -1549,7 +1653,7 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             drawBackground();
 
-            if (gameState === 'waveIntro') {
+            if (gameState === 'waveIntro' && !isPaused) {
                 waveIntroTimer -= deltaTime;
                 if (waveIntroTimer <= 0) {
                     document.getElementById('waveAnnounce').classList.remove('visible');
@@ -1557,7 +1661,7 @@
                 }
             }
 
-            if (gameState === 'playing') {
+            if (gameState === 'playing' && !isPaused) {
                 // Laser timer
                 if (laserActive) {
                     laserTimeRemaining -= deltaTime;
@@ -1663,7 +1767,7 @@
         }, { passive: false });
 
         function handleShoot(clickX, clickY) {
-            if (gameState !== 'playing') return;
+            if (gameState !== 'playing' || isPaused) return;
 
             if (laserActive) {
                 playSound('laser');
@@ -1758,6 +1862,42 @@
 
         document.addEventListener('fullscreenchange', updateFullscreenButton);
         document.addEventListener('webkitfullscreenchange', updateFullscreenButton);
+
+        // Pause functionality
+        const pauseBtn = document.getElementById('pauseBtn');
+        const pauseIcon = document.getElementById('pauseIcon');
+        const playIcon = document.getElementById('playIcon');
+        const pauseOverlay = document.getElementById('pauseOverlay');
+
+        function updatePauseButton() {
+            pauseIcon.style.display = isPaused ? 'none' : 'block';
+            playIcon.style.display = isPaused ? 'block' : 'none';
+        }
+
+        function togglePause() {
+            if (gameState !== 'playing' && gameState !== 'waveIntro') return;
+
+            isPaused = !isPaused;
+            updatePauseButton();
+
+            if (isPaused) {
+                pauseOverlay.classList.add('visible');
+            } else {
+                pauseOverlay.classList.remove('visible');
+                lastTime = performance.now(); // Reset time to prevent jump
+            }
+        }
+
+        pauseBtn.addEventListener('click', togglePause);
+
+        // Keyboard pause (Escape or P)
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') {
+                if (gameState === 'playing' || gameState === 'waveIntro') {
+                    togglePause();
+                }
+            }
+        });
 
         requestAnimationFrame(gameLoop);
     </script>
