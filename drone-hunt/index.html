@@ -593,8 +593,8 @@
         <div class="instructions">
             TAP OR CLICK TO SHOOT<br>
             DESTROY DRONES BEFORE THEY REACH YOU<br>
-            SHOOT RABBITS FOR LASER POWER-UP<br>
-            SHOOT ALIENS TO STEAL THEIR WEAPONS<br>
+            SHOOT ROBOT DOGS FOR LASER POWER-UP<br>
+            SHOOT ALIENS FOR BONUS POINTS<br>
             SURVIVE THE WAVES
         </div>
         <button class="btn" id="startBtn">START GAME</button>
@@ -1260,17 +1260,18 @@
         // ============ ANIMAL CLASS ============
         class Animal {
             constructor(type) {
-                this.type = type; // 'rabbit' or 'zebra'
+                this.type = type; // 'robotdog' or 'zebra'
                 this.direction = Math.random() < 0.5 ? 1 : -1;
                 this.x = this.direction === 1 ? -100 : canvas.width + 100;
                 this.y = canvas.height * 0.7 + Math.random() * (canvas.height * 0.2);
-                this.speed = type === 'rabbit' ? (3 + Math.random() * 2) : (1.5 + Math.random());
+                this.speed = type === 'robotdog' ? (4 + Math.random() * 2) : (1.5 + Math.random());
                 this.frame = 0;
                 this.frameTimer = 0;
                 this.hit = false;
-                this.size = type === 'rabbit' ? 30 : 60;
+                this.size = type === 'robotdog' ? 35 : 60;
                 this.hopOffset = 0;
-                this.hopSpeed = type === 'rabbit' ? 0.3 : 0.1;
+                this.hopSpeed = type === 'robotdog' ? 0.25 : 0.1;
+                this.glowPhase = Math.random() * Math.PI * 2;
             }
 
             update(deltaTime) {
@@ -1282,9 +1283,10 @@
                     this.frame = (this.frame + 1) % 4;
                     this.frameTimer = 0;
                 }
+                this.glowPhase += 0.1 * deltaTime * 60;
 
-                // Hopping motion
-                this.hopOffset = Math.abs(Math.sin(this.x * this.hopSpeed)) * (this.type === 'rabbit' ? 20 : 10);
+                // Running motion (less bouncy than hopping)
+                this.hopOffset = Math.abs(Math.sin(this.x * this.hopSpeed)) * (this.type === 'robotdog' ? 8 : 10);
 
                 // Remove if off screen
                 if (this.direction === 1 && this.x > canvas.width + 150) return true;
@@ -1298,45 +1300,86 @@
                 ctx.translate(this.x, this.y - this.hopOffset);
                 if (this.direction === -1) ctx.scale(-1, 1);
 
-                if (this.type === 'rabbit') {
-                    // Cute rabbit silhouette
-                    ctx.fillStyle = '#8B7355';
+                if (this.type === 'robotdog') {
+                    // Robot dog (Boston Dynamics style)
+                    const glow = 0.5 + Math.sin(this.glowPhase) * 0.3;
 
-                    // Body
+                    ctx.shadowBlur = 15;
+                    ctx.shadowColor = '#0ff';
+
+                    // Body (metallic box)
+                    ctx.fillStyle = '#444';
+                    ctx.strokeStyle = '#0ff';
+                    ctx.lineWidth = 2;
                     ctx.beginPath();
-                    ctx.ellipse(0, 0, this.size * 0.6, this.size * 0.4, 0, 0, Math.PI * 2);
+                    ctx.roundRect(-this.size * 0.5, -this.size * 0.25, this.size, this.size * 0.5, 5);
                     ctx.fill();
+                    ctx.stroke();
+
+                    // Body panel lines
+                    ctx.strokeStyle = '#666';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(-this.size * 0.2, -this.size * 0.25);
+                    ctx.lineTo(-this.size * 0.2, this.size * 0.25);
+                    ctx.moveTo(this.size * 0.2, -this.size * 0.25);
+                    ctx.lineTo(this.size * 0.2, this.size * 0.25);
+                    ctx.stroke();
 
                     // Head
+                    ctx.fillStyle = '#333';
+                    ctx.strokeStyle = '#0ff';
+                    ctx.lineWidth = 2;
                     ctx.beginPath();
-                    ctx.arc(this.size * 0.5, -this.size * 0.2, this.size * 0.35, 0, Math.PI * 2);
+                    ctx.roundRect(this.size * 0.4, -this.size * 0.35, this.size * 0.4, this.size * 0.35, 3);
+                    ctx.fill();
+                    ctx.stroke();
+
+                    // Eye (glowing sensor)
+                    ctx.fillStyle = `rgba(0, 255, 255, ${glow})`;
+                    ctx.shadowBlur = 20;
+                    ctx.beginPath();
+                    ctx.arc(this.size * 0.65, -this.size * 0.2, 5, 0, Math.PI * 2);
                     ctx.fill();
 
-                    // Ears
+                    // Antenna/sensor on head
+                    ctx.strokeStyle = '#0ff';
+                    ctx.lineWidth = 2;
                     ctx.beginPath();
-                    ctx.ellipse(this.size * 0.4, -this.size * 0.7, this.size * 0.1, this.size * 0.3, -0.2, 0, Math.PI * 2);
-                    ctx.fill();
+                    ctx.moveTo(this.size * 0.55, -this.size * 0.35);
+                    ctx.lineTo(this.size * 0.55, -this.size * 0.5);
+                    ctx.stroke();
+                    ctx.fillStyle = '#f00';
                     ctx.beginPath();
-                    ctx.ellipse(this.size * 0.6, -this.size * 0.7, this.size * 0.1, this.size * 0.3, 0.2, 0, Math.PI * 2);
-                    ctx.fill();
-
-                    // Tail
-                    ctx.fillStyle = '#DDD';
-                    ctx.beginPath();
-                    ctx.arc(-this.size * 0.5, 0, this.size * 0.15, 0, Math.PI * 2);
+                    ctx.arc(this.size * 0.55, -this.size * 0.52, 3, 0, Math.PI * 2);
                     ctx.fill();
 
-                    // Eye
-                    ctx.fillStyle = '#000';
-                    ctx.beginPath();
-                    ctx.arc(this.size * 0.6, -this.size * 0.25, 3, 0, Math.PI * 2);
-                    ctx.fill();
+                    // Legs (mechanical, animated)
+                    ctx.shadowBlur = 0;
+                    ctx.fillStyle = '#555';
+                    ctx.strokeStyle = '#0ff';
+                    ctx.lineWidth = 1;
+                    const legOffset = Math.sin(this.frame * Math.PI / 2) * 8;
 
-                    // Legs (animated)
-                    ctx.fillStyle = '#8B7355';
-                    const legOffset = Math.sin(this.frame * Math.PI / 2) * 5;
-                    ctx.fillRect(-this.size * 0.3, this.size * 0.2, 8, 15 + legOffset);
-                    ctx.fillRect(this.size * 0.1, this.size * 0.2, 8, 15 - legOffset);
+                    // Front legs
+                    ctx.fillRect(this.size * 0.2, this.size * 0.2, 6, 20 + legOffset);
+                    ctx.strokeRect(this.size * 0.2, this.size * 0.2, 6, 20 + legOffset);
+                    ctx.fillRect(this.size * 0.35, this.size * 0.2, 6, 20 - legOffset);
+                    ctx.strokeRect(this.size * 0.35, this.size * 0.2, 6, 20 - legOffset);
+
+                    // Back legs
+                    ctx.fillRect(-this.size * 0.4, this.size * 0.2, 6, 20 - legOffset);
+                    ctx.strokeRect(-this.size * 0.4, this.size * 0.2, 6, 20 - legOffset);
+                    ctx.fillRect(-this.size * 0.25, this.size * 0.2, 6, 20 + legOffset);
+                    ctx.strokeRect(-this.size * 0.25, this.size * 0.2, 6, 20 + legOffset);
+
+                    // Tail (antenna)
+                    ctx.strokeStyle = '#888';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.moveTo(-this.size * 0.5, 0);
+                    ctx.lineTo(-this.size * 0.7, -this.size * 0.2);
+                    ctx.stroke();
                 } else {
                     // Zebra
                     ctx.fillStyle = '#FFF';
@@ -2039,7 +2082,7 @@
         }
 
         function spawnAnimal() {
-            const type = Math.random() < 0.3 ? 'rabbit' : 'zebra';
+            const type = Math.random() < 0.3 ? 'robotdog' : 'zebra';
             animals.push(new Animal(type));
         }
 
@@ -2194,18 +2237,18 @@
                     spawnTimer = Math.max(0.5, 2 - wave * 0.1);
                 }
 
-                // Spawn animals regularly
+                // Spawn animals occasionally
                 animalSpawnTimer -= deltaTime;
                 if (animalSpawnTimer <= 0) {
                     spawnAnimal();
-                    animalSpawnTimer = 4 + Math.random() * 4; // Every 4-8 seconds
+                    animalSpawnTimer = 8 + Math.random() * 7; // Every 8-15 seconds
                 }
 
-                // Spawn aliens regularly (more frequent in higher waves)
+                // Spawn aliens occasionally
                 alienSpawnTimer -= deltaTime;
                 if (alienSpawnTimer <= 0) {
                     spawnAlien();
-                    alienSpawnTimer = Math.max(3, 10 - wave) + Math.random() * 5; // Faster in higher waves
+                    alienSpawnTimer = 12 + Math.random() * 10; // Every 12-22 seconds
                 }
 
                 // Update aliens
@@ -2318,22 +2361,17 @@
                 if (currentWeapon === 'shotgun') playSound('reload');
             }
 
-            // Check alien hits first (highest priority - gives weapons!)
+            // Check alien hits (bonus points!)
             for (let i = aliens.length - 1; i >= 0; i--) {
                 if (aliens[i].checkHit(clickX, clickY)) {
                     const alien = aliens[i];
                     alien.hit = true;
 
-                    // Player gets the alien's weapon!
-                    currentWeapon = alien.weapon;
-                    weaponAmmo[alien.weapon] = WEAPONS[alien.weapon].ammo;
-                    updateWeaponUI();
-                    playSound('weaponPickup');
                     playSound('alienScream');
 
                     // Create explosion
                     explosions.push(new Explosion(alien.screenX, alien.screenY, 120));
-                    score += 200;
+                    score += 500; // Big bonus points!
                     updateScore();
                     screenShake = 0.2;
 
@@ -2345,8 +2383,8 @@
             // Check animal hits
             for (let i = animals.length - 1; i >= 0; i--) {
                 if (animals[i].checkHit(clickX, clickY)) {
-                    if (animals[i].type === 'rabbit') {
-                        // Rabbit gives laser power-up!
+                    if (animals[i].type === 'robotdog') {
+                        // Robot dog gives laser power-up!
                         activateLaser();
                         animals[i].hit = true;
                         animals.splice(i, 1);
