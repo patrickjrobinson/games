@@ -1,0 +1,1353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DRONE HUNTER</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #000;
+            overflow: hidden;
+            font-family: 'Press Start 2P', monospace;
+        }
+
+        #gameCanvas {
+            display: block;
+            cursor: none;
+        }
+
+        /* CRT Scanline Overlay */
+        #scanlines {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0, 0, 0, 0.1),
+                rgba(0, 0, 0, 0.1) 1px,
+                transparent 1px,
+                transparent 2px
+            );
+            z-index: 100;
+        }
+
+        /* UI Overlay */
+        #ui {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 20px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            pointer-events: none;
+            z-index: 50;
+        }
+
+        .ui-box {
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid #0ff;
+            padding: 10px 20px;
+            box-shadow: 0 0 10px #0ff, inset 0 0 10px rgba(0, 255, 255, 0.1);
+        }
+
+        .ui-label {
+            color: #0ff;
+            font-size: 10px;
+            margin-bottom: 5px;
+            text-shadow: 0 0 10px #0ff;
+        }
+
+        .ui-value {
+            color: #fff;
+            font-size: 20px;
+            text-shadow: 0 0 10px #fff;
+        }
+
+        #lives-container {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+            z-index: 50;
+        }
+
+        .life-icon {
+            width: 30px;
+            height: 30px;
+            border: 2px solid #f0f;
+            border-radius: 50%;
+            background: radial-gradient(circle, #f0f 0%, transparent 70%);
+            box-shadow: 0 0 15px #f0f;
+            transition: opacity 0.3s;
+        }
+
+        .life-icon.lost {
+            opacity: 0.2;
+            box-shadow: none;
+        }
+
+        /* Power-up indicator */
+        #powerupBar {
+            position: fixed;
+            bottom: 70px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 200px;
+            height: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid #f00;
+            z-index: 50;
+            display: none;
+        }
+
+        #powerupFill {
+            height: 100%;
+            background: linear-gradient(90deg, #f00, #ff0);
+            box-shadow: 0 0 10px #f00;
+            transition: width 0.1s;
+        }
+
+        #powerupLabel {
+            position: fixed;
+            bottom: 95px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #f00;
+            font-size: 10px;
+            text-shadow: 0 0 10px #f00;
+            z-index: 50;
+            display: none;
+        }
+
+        /* Screens */
+        .screen-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 75;
+        }
+
+        .screen-overlay.hidden {
+            display: none;
+        }
+
+        #startScreen h1 {
+            font-size: 48px;
+            color: #0ff;
+            text-shadow: 0 0 30px #0ff, 0 0 60px #0ff;
+            margin-bottom: 10px;
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes glow {
+            from { text-shadow: 0 0 30px #0ff, 0 0 60px #0ff; }
+            to { text-shadow: 0 0 40px #0ff, 0 0 80px #0ff, 0 0 100px #0ff; }
+        }
+
+        .subtitle {
+            color: #f0f;
+            font-size: 12px;
+            margin-bottom: 40px;
+            text-shadow: 0 0 10px #f0f;
+        }
+
+        .instructions {
+            color: #888;
+            font-size: 10px;
+            margin-bottom: 30px;
+            text-align: center;
+            line-height: 2;
+        }
+
+        .btn {
+            background: transparent;
+            border: 2px solid #0f0;
+            color: #0f0;
+            padding: 15px 40px;
+            font-family: 'Press Start 2P', monospace;
+            font-size: 14px;
+            cursor: pointer;
+            text-shadow: 0 0 10px #0f0;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            background: #0f0;
+            color: #000;
+            text-shadow: none;
+            box-shadow: 0 0 40px #0f0;
+        }
+
+        #gameOverScreen h2 {
+            font-size: 36px;
+            color: #f00;
+            text-shadow: 0 0 30px #f00;
+            margin-bottom: 20px;
+        }
+
+        #finalScore {
+            color: #ff0;
+            font-size: 24px;
+            margin-bottom: 10px;
+            text-shadow: 0 0 20px #ff0;
+        }
+
+        #waveReached {
+            color: #0ff;
+            font-size: 14px;
+            margin-bottom: 30px;
+            text-shadow: 0 0 10px #0ff;
+        }
+
+        /* Wave Announcement */
+        #waveAnnounce {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 60;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        #waveAnnounce.visible {
+            opacity: 1;
+        }
+
+        #waveAnnounce .wave-text {
+            font-size: 48px;
+            color: #0ff;
+            text-shadow: 0 0 30px #0ff;
+        }
+
+        #waveAnnounce .ready-text {
+            font-size: 18px;
+            color: #f0f;
+            text-shadow: 0 0 15px #f0f;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+    <div id="scanlines"></div>
+
+    <div id="ui">
+        <div class="ui-box">
+            <div class="ui-label">SCORE</div>
+            <div class="ui-value" id="scoreDisplay">0</div>
+        </div>
+        <div class="ui-box">
+            <div class="ui-label">WAVE</div>
+            <div class="ui-value" id="waveDisplay">1</div>
+        </div>
+    </div>
+
+    <div id="lives-container">
+        <div class="life-icon" id="life1"></div>
+        <div class="life-icon" id="life2"></div>
+        <div class="life-icon" id="life3"></div>
+    </div>
+
+    <div id="powerupLabel">LASER ACTIVE</div>
+    <div id="powerupBar"><div id="powerupFill"></div></div>
+
+    <div id="waveAnnounce">
+        <div class="wave-text">WAVE <span id="announceWaveNum">1</span></div>
+        <div class="ready-text">GET READY</div>
+    </div>
+
+    <div id="startScreen" class="screen-overlay">
+        <h1>DRONE HUNTER</h1>
+        <p class="subtitle">ARCADE EDITION</p>
+        <div class="instructions">
+            CLICK TO SHOOT<br>
+            DESTROY DRONES BEFORE THEY REACH YOU<br>
+            SHOOT RABBITS FOR LASER POWER-UP!<br>
+            SURVIVE THE WAVES
+        </div>
+        <button class="btn" id="startBtn">START GAME</button>
+    </div>
+
+    <div id="gameOverScreen" class="screen-overlay hidden">
+        <h2>GAME OVER</h2>
+        <div id="finalScore">SCORE: 0</div>
+        <div id="waveReached">WAVE 1</div>
+        <button class="btn" id="restartBtn">PLAY AGAIN</button>
+    </div>
+
+    <script>
+        // ============ AUDIO SYSTEM ============
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playSound(type) {
+            const now = audioCtx.currentTime;
+
+            if (type === 'shotgun') {
+                // Shotgun blast - loud low-frequency burst
+                const noise = audioCtx.createBufferSource();
+                const bufferSize = audioCtx.sampleRate * 0.3;
+                const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.1));
+                }
+                noise.buffer = buffer;
+
+                const filter = audioCtx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.value = 800;
+
+                const gain = audioCtx.createGain();
+                gain.gain.setValueAtTime(0.8, now);
+                gain.gain.exponentialDecayTo && gain.gain.exponentialDecayTo(0.01, now + 0.3);
+                gain.gain.setValueAtTime(0.8, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
+
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(audioCtx.destination);
+                noise.start(now);
+                noise.stop(now + 0.3);
+
+                // Add a click/punch
+                const osc = audioCtx.createOscillator();
+                osc.frequency.setValueAtTime(150, now);
+                osc.frequency.exponentialRampToValueAtTime(50, now + 0.1);
+                const oscGain = audioCtx.createGain();
+                oscGain.gain.setValueAtTime(0.5, now);
+                oscGain.gain.linearRampToValueAtTime(0, now + 0.1);
+                osc.connect(oscGain);
+                oscGain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.1);
+            }
+
+            if (type === 'reload') {
+                // Pump action reload sound
+                setTimeout(() => {
+                    const now2 = audioCtx.currentTime;
+
+                    // First click (pump back)
+                    const click1 = audioCtx.createOscillator();
+                    click1.frequency.value = 200;
+                    const click1Gain = audioCtx.createGain();
+                    click1Gain.gain.setValueAtTime(0.3, now2);
+                    click1Gain.gain.linearRampToValueAtTime(0, now2 + 0.05);
+                    click1.connect(click1Gain);
+                    click1Gain.connect(audioCtx.destination);
+                    click1.start(now2);
+                    click1.stop(now2 + 0.05);
+
+                    // Slide noise
+                    const noise = audioCtx.createBufferSource();
+                    const bufferSize = audioCtx.sampleRate * 0.15;
+                    const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+                    const data = buffer.getChannelData(0);
+                    for (let i = 0; i < bufferSize; i++) {
+                        data[i] = (Math.random() * 2 - 1) * 0.2;
+                    }
+                    noise.buffer = buffer;
+                    const noiseFilter = audioCtx.createBiquadFilter();
+                    noiseFilter.type = 'bandpass';
+                    noiseFilter.frequency.value = 2000;
+                    const noiseGain = audioCtx.createGain();
+                    noiseGain.gain.value = 0.15;
+                    noise.connect(noiseFilter);
+                    noiseFilter.connect(noiseGain);
+                    noiseGain.connect(audioCtx.destination);
+                    noise.start(now2 + 0.05);
+                    noise.stop(now2 + 0.2);
+
+                    // Second click (pump forward)
+                    const click2 = audioCtx.createOscillator();
+                    click2.frequency.value = 300;
+                    const click2Gain = audioCtx.createGain();
+                    click2Gain.gain.setValueAtTime(0.4, now2 + 0.2);
+                    click2Gain.gain.linearRampToValueAtTime(0, now2 + 0.25);
+                    click2.connect(click2Gain);
+                    click2Gain.connect(audioCtx.destination);
+                    click2.start(now2 + 0.2);
+                    click2.stop(now2 + 0.25);
+                }, 200);
+            }
+
+            if (type === 'droneScream') {
+                // Pathetic drone scream "ahhh"
+                const osc1 = audioCtx.createOscillator();
+                const osc2 = audioCtx.createOscillator();
+
+                osc1.type = 'sawtooth';
+                osc2.type = 'square';
+
+                // Start high, go down (falling scream)
+                osc1.frequency.setValueAtTime(800, now);
+                osc1.frequency.linearRampToValueAtTime(200, now + 0.4);
+                osc2.frequency.setValueAtTime(820, now);
+                osc2.frequency.linearRampToValueAtTime(180, now + 0.4);
+
+                const gain = audioCtx.createGain();
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.linearRampToValueAtTime(0.2, now + 0.1);
+                gain.gain.linearRampToValueAtTime(0, now + 0.4);
+
+                const filter = audioCtx.createBiquadFilter();
+                filter.type = 'bandpass';
+                filter.frequency.value = 1000;
+                filter.Q.value = 2;
+
+                osc1.connect(filter);
+                osc2.connect(filter);
+                filter.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc1.start(now);
+                osc2.start(now);
+                osc1.stop(now + 0.4);
+                osc2.stop(now + 0.4);
+            }
+
+            if (type === 'laser') {
+                // Laser zap sound
+                const osc = audioCtx.createOscillator();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(1500, now);
+                osc.frequency.exponentialRampToValueAtTime(100, now + 0.1);
+
+                const gain = audioCtx.createGain();
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.linearRampToValueAtTime(0, now + 0.1);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.1);
+            }
+
+            if (type === 'powerup') {
+                // Power-up collected sound
+                const notes = [523, 659, 784, 1047]; // C5, E5, G5, C6
+                notes.forEach((freq, i) => {
+                    const osc = audioCtx.createOscillator();
+                    osc.type = 'square';
+                    osc.frequency.value = freq;
+                    const gain = audioCtx.createGain();
+                    gain.gain.setValueAtTime(0.15, now + i * 0.1);
+                    gain.gain.linearRampToValueAtTime(0, now + i * 0.1 + 0.15);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(now + i * 0.1);
+                    osc.stop(now + i * 0.1 + 0.15);
+                });
+            }
+        }
+
+        // ============ GAME SETUP ============
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // ============ STARS (Random positions) ============
+        let stars = [];
+        function generateStars() {
+            stars = [];
+            const horizonY = canvas.height * 0.5;
+            for (let i = 0; i < 150; i++) {
+                stars.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * horizonY * 0.8,
+                    size: 0.5 + Math.random() * 2,
+                    twinkle: Math.random() * Math.PI * 2,
+                    twinkleSpeed: 0.02 + Math.random() * 0.03
+                });
+            }
+        }
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            generateStars();
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+
+        // ============ GAME STATE ============
+        let gameState = 'start';
+        let score = 0;
+        let lives = 3;
+        let wave = 1;
+        let drones = [];
+        let explosions = [];
+        let animals = [];
+        let mouseX = canvas.width / 2;
+        let mouseY = canvas.height / 2;
+        let screenShake = 0;
+        let waveIntroTimer = 0;
+        let dronesRemaining = 0;
+        let dronesSpawned = 0;
+        let spawnTimer = 0;
+        let animalSpawnTimer = 0;
+
+        // Laser power-up state
+        let laserActive = false;
+        let laserTimeRemaining = 0;
+        const LASER_DURATION = 30;
+
+        // ============ ANIMAL CLASS ============
+        class Animal {
+            constructor(type) {
+                this.type = type; // 'rabbit' or 'zebra'
+                this.direction = Math.random() < 0.5 ? 1 : -1;
+                this.x = this.direction === 1 ? -100 : canvas.width + 100;
+                this.y = canvas.height * 0.7 + Math.random() * (canvas.height * 0.2);
+                this.speed = type === 'rabbit' ? (3 + Math.random() * 2) : (1.5 + Math.random());
+                this.frame = 0;
+                this.frameTimer = 0;
+                this.hit = false;
+                this.size = type === 'rabbit' ? 30 : 60;
+                this.hopOffset = 0;
+                this.hopSpeed = type === 'rabbit' ? 0.3 : 0.1;
+            }
+
+            update(deltaTime) {
+                if (this.hit) return true;
+
+                this.x += this.speed * this.direction * deltaTime * 60;
+                this.frameTimer += deltaTime;
+                if (this.frameTimer > 0.1) {
+                    this.frame = (this.frame + 1) % 4;
+                    this.frameTimer = 0;
+                }
+
+                // Hopping motion
+                this.hopOffset = Math.abs(Math.sin(this.x * this.hopSpeed)) * (this.type === 'rabbit' ? 20 : 10);
+
+                // Remove if off screen
+                if (this.direction === 1 && this.x > canvas.width + 150) return true;
+                if (this.direction === -1 && this.x < -150) return true;
+
+                return false;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y - this.hopOffset);
+                if (this.direction === -1) ctx.scale(-1, 1);
+
+                if (this.type === 'rabbit') {
+                    // Cute rabbit silhouette
+                    ctx.fillStyle = '#8B7355';
+
+                    // Body
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, this.size * 0.6, this.size * 0.4, 0, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Head
+                    ctx.beginPath();
+                    ctx.arc(this.size * 0.5, -this.size * 0.2, this.size * 0.35, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Ears
+                    ctx.beginPath();
+                    ctx.ellipse(this.size * 0.4, -this.size * 0.7, this.size * 0.1, this.size * 0.3, -0.2, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.ellipse(this.size * 0.6, -this.size * 0.7, this.size * 0.1, this.size * 0.3, 0.2, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Tail
+                    ctx.fillStyle = '#DDD';
+                    ctx.beginPath();
+                    ctx.arc(-this.size * 0.5, 0, this.size * 0.15, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Eye
+                    ctx.fillStyle = '#000';
+                    ctx.beginPath();
+                    ctx.arc(this.size * 0.6, -this.size * 0.25, 3, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Legs (animated)
+                    ctx.fillStyle = '#8B7355';
+                    const legOffset = Math.sin(this.frame * Math.PI / 2) * 5;
+                    ctx.fillRect(-this.size * 0.3, this.size * 0.2, 8, 15 + legOffset);
+                    ctx.fillRect(this.size * 0.1, this.size * 0.2, 8, 15 - legOffset);
+                } else {
+                    // Zebra
+                    ctx.fillStyle = '#FFF';
+
+                    // Body
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, this.size * 0.8, this.size * 0.4, 0, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Stripes
+                    ctx.strokeStyle = '#000';
+                    ctx.lineWidth = 3;
+                    for (let i = -3; i <= 3; i++) {
+                        ctx.beginPath();
+                        ctx.moveTo(i * 12, -this.size * 0.35);
+                        ctx.lineTo(i * 12 - 5, this.size * 0.35);
+                        ctx.stroke();
+                    }
+
+                    // Neck
+                    ctx.fillStyle = '#FFF';
+                    ctx.beginPath();
+                    ctx.moveTo(this.size * 0.5, -this.size * 0.2);
+                    ctx.lineTo(this.size * 0.7, -this.size * 0.8);
+                    ctx.lineTo(this.size * 0.9, -this.size * 0.7);
+                    ctx.lineTo(this.size * 0.7, -this.size * 0.1);
+                    ctx.fill();
+
+                    // Neck stripes
+                    ctx.strokeStyle = '#000';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(this.size * 0.55, -this.size * 0.35);
+                    ctx.lineTo(this.size * 0.75, -this.size * 0.45);
+                    ctx.stroke();
+                    ctx.beginPath();
+                    ctx.moveTo(this.size * 0.6, -this.size * 0.5);
+                    ctx.lineTo(this.size * 0.8, -this.size * 0.6);
+                    ctx.stroke();
+
+                    // Head
+                    ctx.fillStyle = '#FFF';
+                    ctx.beginPath();
+                    ctx.ellipse(this.size * 0.85, -this.size * 0.85, this.size * 0.25, this.size * 0.15, 0.5, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Mane
+                    ctx.fillStyle = '#333';
+                    ctx.fillRect(this.size * 0.55, -this.size * 0.9, this.size * 0.25, 8);
+
+                    // Eye
+                    ctx.fillStyle = '#000';
+                    ctx.beginPath();
+                    ctx.arc(this.size * 0.9, -this.size * 0.85, 3, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Legs
+                    ctx.fillStyle = '#FFF';
+                    ctx.strokeStyle = '#000';
+                    ctx.lineWidth = 1;
+                    const legOffset = Math.sin(this.frame * Math.PI / 2) * 8;
+
+                    // Front legs
+                    ctx.fillRect(this.size * 0.3, this.size * 0.25, 8, 35 + legOffset);
+                    ctx.strokeRect(this.size * 0.3, this.size * 0.25, 8, 35 + legOffset);
+                    ctx.fillRect(this.size * 0.45, this.size * 0.25, 8, 35 - legOffset);
+                    ctx.strokeRect(this.size * 0.45, this.size * 0.25, 8, 35 - legOffset);
+
+                    // Back legs
+                    ctx.fillRect(-this.size * 0.5, this.size * 0.25, 8, 35 - legOffset);
+                    ctx.strokeRect(-this.size * 0.5, this.size * 0.25, 8, 35 - legOffset);
+                    ctx.fillRect(-this.size * 0.35, this.size * 0.25, 8, 35 + legOffset);
+                    ctx.strokeRect(-this.size * 0.35, this.size * 0.25, 8, 35 + legOffset);
+
+                    // Tail
+                    ctx.strokeStyle = '#333';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.moveTo(-this.size * 0.7, -this.size * 0.1);
+                    ctx.quadraticCurveTo(-this.size * 0.9, this.size * 0.2, -this.size * 0.85, this.size * 0.4);
+                    ctx.stroke();
+                }
+
+                ctx.restore();
+
+                // Store hitbox
+                this.screenX = this.x;
+                this.screenY = this.y - this.hopOffset;
+                this.hitRadius = this.size;
+            }
+
+            checkHit(x, y) {
+                const dx = x - this.screenX;
+                const dy = y - this.screenY;
+                return Math.sqrt(dx * dx + dy * dy) < this.hitRadius;
+            }
+        }
+
+        // ============ DRONE CLASS ============
+        class Drone {
+            constructor(wave) {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * (canvas.height * 0.35) + 50;
+                this.z = 800 + Math.random() * 200;
+                this.baseSpeed = 1.5 + (wave * 0.3) + Math.random() * 0.5;
+                this.speed = this.baseSpeed;
+                this.wobbleOffset = Math.random() * Math.PI * 2;
+                this.wobbleSpeed = 0.03 + Math.random() * 0.02;
+                this.hit = false;
+                this.warningFlash = 0;
+                this.hue = Math.random() < 0.5 ? 180 : 300;
+                this.rotorAngle = Math.random() * Math.PI * 2;
+                this.screenX = this.x;
+                this.screenY = this.y;
+                this.hitRadius = 50;
+            }
+
+            update(deltaTime) {
+                if (this.hit) return false;
+                this.z -= this.speed * deltaTime * 60;
+                this.wobbleOffset += this.wobbleSpeed * deltaTime * 60;
+                this.x += Math.sin(this.wobbleOffset) * 1.5;
+                this.y += Math.cos(this.wobbleOffset * 0.7) * 0.5;
+                this.x = Math.max(50, Math.min(canvas.width - 50, this.x));
+                this.rotorAngle += 0.3 * deltaTime * 60;
+                if (this.z < 150) {
+                    this.warningFlash += 0.2 * deltaTime * 60;
+                }
+                if (this.z <= 0) return true;
+                return false;
+            }
+
+            draw() {
+                const scale = Math.max(0.1, 1 - this.z / 1000);
+                const size = 20 + scale * 60;
+                const screenX = this.x;
+                const screenY = this.y + (canvas.height * 0.45 - this.y) * scale * 0.5;
+
+                ctx.save();
+                ctx.translate(screenX, screenY);
+
+                const glowIntensity = 0.5 + scale * 0.5;
+                const baseColor = this.z < 150 && Math.sin(this.warningFlash * 10) > 0
+                    ? 'hsl(0, 100%, 50%)'
+                    : `hsl(${this.hue}, 100%, 50%)`;
+
+                ctx.shadowBlur = 20 * glowIntensity;
+                ctx.shadowColor = baseColor;
+                ctx.strokeStyle = baseColor;
+                ctx.lineWidth = 2 + scale * 2;
+
+                for (let i = 0; i < 4; i++) {
+                    const angle = this.rotorAngle + (i * Math.PI / 2);
+                    const armLength = size * 0.6;
+                    const ax = Math.cos(angle) * armLength;
+                    const ay = Math.sin(angle) * armLength * 0.4;
+
+                    ctx.beginPath();
+                    ctx.moveTo(0, 0);
+                    ctx.lineTo(ax, ay);
+                    ctx.stroke();
+
+                    ctx.fillStyle = `hsla(${this.hue}, 100%, 70%, ${0.3 * glowIntensity})`;
+                    ctx.beginPath();
+                    ctx.arc(ax, ay, size * 0.25, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.fillStyle = baseColor;
+                    ctx.beginPath();
+                    ctx.arc(ax, ay, size * 0.08, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                ctx.fillStyle = '#111';
+                ctx.strokeStyle = baseColor;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.ellipse(0, 0, size * 0.25, size * 0.12, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = baseColor;
+                ctx.shadowBlur = 30;
+                ctx.beginPath();
+                ctx.arc(0, 0, size * 0.08, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.restore();
+
+                this.screenX = screenX;
+                this.screenY = screenY;
+                this.hitRadius = size * 0.7;
+            }
+
+            checkHit(x, y) {
+                if (this.screenX === undefined || this.hitRadius === undefined) return false;
+                const dx = x - this.screenX;
+                const dy = y - this.screenY;
+                return Math.sqrt(dx * dx + dy * dy) < this.hitRadius;
+            }
+        }
+
+        // ============ EXPLOSION CLASS ============
+        class Explosion {
+            constructor(x, y, hue) {
+                this.x = x;
+                this.y = y;
+                this.hue = hue;
+                this.particles = [];
+                this.life = 1;
+
+                for (let i = 0; i < 30; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = 2 + Math.random() * 8;
+                    this.particles.push({
+                        x: 0, y: 0,
+                        vx: Math.cos(angle) * speed,
+                        vy: Math.sin(angle) * speed,
+                        size: 2 + Math.random() * 4,
+                        hue: this.hue + (Math.random() - 0.5) * 40
+                    });
+                }
+            }
+
+            update(deltaTime) {
+                this.life -= 0.02 * deltaTime * 60;
+                this.particles.forEach(p => {
+                    p.x += p.vx * deltaTime * 60;
+                    p.y += p.vy * deltaTime * 60;
+                    p.vy += 0.1 * deltaTime * 60;
+                    p.vx *= 0.98;
+                    p.vy *= 0.98;
+                });
+                return this.life <= 0;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.globalAlpha = Math.max(0, this.life);
+
+                this.particles.forEach(p => {
+                    const radius = Math.max(0.1, p.size * this.life);
+                    ctx.fillStyle = `hsl(${p.hue}, 100%, ${50 + this.life * 30}%)`;
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = `hsl(${p.hue}, 100%, 50%)`;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+
+                ctx.restore();
+            }
+        }
+
+        // ============ RENDERING ============
+        function drawBackground() {
+            const horizonY = canvas.height * 0.5;
+
+            // Brighter sky gradient (golden hour)
+            const skyGradient = ctx.createLinearGradient(0, 0, 0, horizonY);
+            skyGradient.addColorStop(0, '#1a1a3a');
+            skyGradient.addColorStop(0.2, '#2d2d5a');
+            skyGradient.addColorStop(0.4, '#4a3a6a');
+            skyGradient.addColorStop(0.6, '#7a4a6a');
+            skyGradient.addColorStop(0.8, '#aa6050');
+            skyGradient.addColorStop(1, '#dd8844');
+            ctx.fillStyle = skyGradient;
+            ctx.fillRect(0, 0, canvas.width, horizonY);
+
+            // Twinkling stars
+            stars.forEach(star => {
+                star.twinkle += star.twinkleSpeed;
+                const brightness = 0.4 + Math.sin(star.twinkle) * 0.3;
+                ctx.fillStyle = `rgba(255, 255, 240, ${brightness})`;
+                ctx.beginPath();
+                ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            // Big bright moon with glow
+            ctx.fillStyle = 'rgba(255, 250, 220, 0.15)';
+            ctx.beginPath();
+            ctx.arc(canvas.width * 0.85, canvas.height * 0.12, 80, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = 'rgba(255, 250, 230, 0.95)';
+            ctx.shadowBlur = 50;
+            ctx.shadowColor = 'rgba(255, 250, 200, 0.8)';
+            ctx.beginPath();
+            ctx.arc(canvas.width * 0.85, canvas.height * 0.12, 45, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+
+            // Epic far mountains (snow-capped)
+            ctx.fillStyle = '#3a3a5a';
+            ctx.beginPath();
+            ctx.moveTo(0, horizonY);
+            for (let x = 0; x <= canvas.width; x += 80) {
+                const height = 100 + Math.sin(x * 0.006) * 60 + Math.sin(x * 0.012 + 1) * 40;
+                ctx.lineTo(x, horizonY - height);
+            }
+            ctx.lineTo(canvas.width, horizonY);
+            ctx.fill();
+
+            // Snow caps
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+            ctx.beginPath();
+            ctx.moveTo(0, horizonY);
+            for (let x = 0; x <= canvas.width; x += 80) {
+                const height = 100 + Math.sin(x * 0.006) * 60 + Math.sin(x * 0.012 + 1) * 40;
+                const snowHeight = height * 0.3;
+                ctx.lineTo(x, horizonY - height);
+                ctx.lineTo(x + 40, horizonY - height + snowHeight);
+            }
+            ctx.lineTo(canvas.width, horizonY);
+            ctx.fill();
+
+            // Mid mountains
+            ctx.fillStyle = '#2d3d4a';
+            ctx.beginPath();
+            ctx.moveTo(0, horizonY);
+            for (let x = 0; x <= canvas.width; x += 50) {
+                const height = 60 + Math.sin(x * 0.01 + 2) * 45 + Math.sin(x * 0.018) * 25;
+                ctx.lineTo(x, horizonY - height);
+            }
+            ctx.lineTo(canvas.width, horizonY);
+            ctx.fill();
+
+            // Near hills with trees
+            ctx.fillStyle = '#1d2d24';
+            ctx.beginPath();
+            ctx.moveTo(0, horizonY);
+            for (let x = 0; x <= canvas.width; x += 30) {
+                const height = 30 + Math.sin(x * 0.015 + 3) * 25 + Math.sin(x * 0.03) * 15;
+                ctx.lineTo(x, horizonY - height);
+            }
+            ctx.lineTo(canvas.width, horizonY);
+            ctx.fill();
+
+            // Pine tree forest silhouette
+            ctx.fillStyle = '#0d1d14';
+            for (let x = 0; x < canvas.width; x += 25 + Math.random() * 15) {
+                const treeHeight = 40 + Math.sin(x * 0.02) * 20 + Math.random() * 30;
+                const treeWidth = 15 + Math.random() * 10;
+                const baseY = horizonY + 10;
+
+                ctx.beginPath();
+                ctx.moveTo(x, baseY);
+                ctx.lineTo(x + treeWidth / 2, baseY - treeHeight);
+                ctx.lineTo(x + treeWidth, baseY);
+                ctx.fill();
+            }
+
+            // Grassy savanna ground
+            const groundGradient = ctx.createLinearGradient(0, horizonY, 0, canvas.height);
+            groundGradient.addColorStop(0, '#3d5a3d');
+            groundGradient.addColorStop(0.2, '#2d4a2d');
+            groundGradient.addColorStop(0.5, '#1d3a1d');
+            groundGradient.addColorStop(1, '#0d2a0d');
+            ctx.fillStyle = groundGradient;
+            ctx.fillRect(0, horizonY, canvas.width, canvas.height - horizonY);
+
+            // Grass texture
+            ctx.strokeStyle = 'rgba(60, 90, 50, 0.4)';
+            ctx.lineWidth = 1;
+            for (let i = 0; i < 15; i++) {
+                const y = horizonY + (i / 15) * (canvas.height - horizonY) * 1.1;
+                const waviness = Math.sin(Date.now() / 2000 + i) * 3;
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                for (let x = 0; x < canvas.width; x += 50) {
+                    ctx.lineTo(x + 25, y + waviness);
+                    ctx.lineTo(x + 50, y);
+                }
+                ctx.stroke();
+            }
+
+            // Horizon glow
+            const horizonGlow = ctx.createLinearGradient(0, horizonY - 40, 0, horizonY + 30);
+            horizonGlow.addColorStop(0, 'transparent');
+            horizonGlow.addColorStop(0.4, 'rgba(255, 150, 80, 0.25)');
+            horizonGlow.addColorStop(0.6, 'rgba(255, 120, 60, 0.2)');
+            horizonGlow.addColorStop(1, 'transparent');
+            ctx.fillStyle = horizonGlow;
+            ctx.fillRect(0, horizonY - 40, canvas.width, 70);
+        }
+
+        function drawCrosshair() {
+            ctx.save();
+            ctx.translate(mouseX, mouseY);
+
+            if (laserActive) {
+                // Laser crosshair (red, more aggressive)
+                ctx.strokeStyle = '#f00';
+                ctx.shadowBlur = 20;
+                ctx.shadowColor = '#f00';
+                ctx.lineWidth = 3;
+
+                const size = 30;
+                ctx.beginPath();
+                ctx.arc(0, 0, size, 0, Math.PI * 2);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.arc(0, 0, size * 0.5, 0, Math.PI * 2);
+                ctx.stroke();
+
+                ctx.fillStyle = '#f00';
+                ctx.beginPath();
+                ctx.arc(0, 0, 5, 0, Math.PI * 2);
+                ctx.fill();
+            } else {
+                // Normal shotgun crosshair
+                ctx.strokeStyle = '#0f0';
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = '#0f0';
+                ctx.lineWidth = 2;
+
+                const size = 25;
+                const gap = 8;
+
+                ctx.beginPath();
+                ctx.arc(0, 0, size, 0, Math.PI * 2);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(0, -size - 10);
+                ctx.lineTo(0, -gap);
+                ctx.moveTo(0, gap);
+                ctx.lineTo(0, size + 10);
+                ctx.moveTo(-size - 10, 0);
+                ctx.lineTo(-gap, 0);
+                ctx.moveTo(gap, 0);
+                ctx.lineTo(size + 10, 0);
+                ctx.stroke();
+
+                ctx.fillStyle = '#0f0';
+                ctx.beginPath();
+                ctx.arc(0, 0, 3, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            ctx.restore();
+        }
+
+        function drawLaserBeam(fromX, fromY, toX, toY) {
+            ctx.save();
+            ctx.strokeStyle = '#f00';
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = '#f00';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(fromX, fromY);
+            ctx.lineTo(toX, toY);
+            ctx.stroke();
+
+            ctx.strokeStyle = '#ff0';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(fromX, fromY);
+            ctx.lineTo(toX, toY);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        // ============ WAVE MANAGEMENT ============
+        function getDronesForWave(waveNum) {
+            return 3 + (waveNum * 2);
+        }
+
+        function startWave(waveNum) {
+            wave = waveNum;
+            dronesRemaining = getDronesForWave(waveNum);
+            dronesSpawned = 0;
+            spawnTimer = 0;
+
+            document.getElementById('waveDisplay').textContent = waveNum;
+            document.getElementById('announceWaveNum').textContent = waveNum;
+            document.getElementById('waveAnnounce').classList.add('visible');
+            waveIntroTimer = 2;
+            gameState = 'waveIntro';
+        }
+
+        function spawnDrone() {
+            if (dronesSpawned < getDronesForWave(wave)) {
+                drones.push(new Drone(wave));
+                dronesSpawned++;
+            }
+        }
+
+        function spawnAnimal() {
+            const type = Math.random() < 0.3 ? 'rabbit' : 'zebra';
+            animals.push(new Animal(type));
+        }
+
+        function checkWaveComplete() {
+            if (dronesSpawned >= getDronesForWave(wave) && drones.length === 0) {
+                const bonus = 500 * wave;
+                score += bonus;
+                updateScore();
+                startWave(wave + 1);
+            }
+        }
+
+        // ============ GAME LOGIC ============
+        function updateScore() {
+            document.getElementById('scoreDisplay').textContent = score;
+        }
+
+        function updateLives() {
+            for (let i = 1; i <= 3; i++) {
+                const lifeEl = document.getElementById('life' + i);
+                if (i > lives) {
+                    lifeEl.classList.add('lost');
+                } else {
+                    lifeEl.classList.remove('lost');
+                }
+            }
+        }
+
+        function updatePowerupBar() {
+            const bar = document.getElementById('powerupBar');
+            const fill = document.getElementById('powerupFill');
+            const label = document.getElementById('powerupLabel');
+
+            if (laserActive) {
+                bar.style.display = 'block';
+                label.style.display = 'block';
+                fill.style.width = (laserTimeRemaining / LASER_DURATION * 100) + '%';
+            } else {
+                bar.style.display = 'none';
+                label.style.display = 'none';
+            }
+        }
+
+        function activateLaser() {
+            laserActive = true;
+            laserTimeRemaining = LASER_DURATION;
+            playSound('powerup');
+        }
+
+        function loseLife() {
+            lives--;
+            updateLives();
+            screenShake = 0.5;
+            if (lives <= 0) gameOver();
+        }
+
+        function gameOver() {
+            gameState = 'gameOver';
+            laserActive = false;
+            document.getElementById('finalScore').textContent = 'SCORE: ' + score;
+            document.getElementById('waveReached').textContent = 'REACHED WAVE ' + wave;
+            document.getElementById('gameOverScreen').classList.remove('hidden');
+        }
+
+        function startGame() {
+            // Resume audio context if suspended
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+
+            gameState = 'playing';
+            score = 0;
+            lives = 3;
+            drones = [];
+            explosions = [];
+            animals = [];
+            laserActive = false;
+            laserTimeRemaining = 0;
+
+            updateScore();
+            updateLives();
+            updatePowerupBar();
+
+            document.getElementById('startScreen').classList.add('hidden');
+            document.getElementById('gameOverScreen').classList.add('hidden');
+
+            startWave(1);
+        }
+
+        // ============ MAIN GAME LOOP ============
+        let lastTime = performance.now();
+        let laserBeams = [];
+
+        function gameLoop(timestamp) {
+            const deltaTime = Math.min((timestamp - lastTime) / 1000, 0.05);
+            lastTime = timestamp;
+
+            ctx.save();
+            if (screenShake > 0) {
+                ctx.translate(
+                    (Math.random() - 0.5) * screenShake * 20,
+                    (Math.random() - 0.5) * screenShake * 20
+                );
+                screenShake -= deltaTime * 2;
+            }
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawBackground();
+
+            if (gameState === 'waveIntro') {
+                waveIntroTimer -= deltaTime;
+                if (waveIntroTimer <= 0) {
+                    document.getElementById('waveAnnounce').classList.remove('visible');
+                    gameState = 'playing';
+                }
+            }
+
+            if (gameState === 'playing') {
+                // Laser timer
+                if (laserActive) {
+                    laserTimeRemaining -= deltaTime;
+                    if (laserTimeRemaining <= 0) {
+                        laserActive = false;
+                    }
+                    updatePowerupBar();
+                }
+
+                // Spawn drones
+                spawnTimer -= deltaTime;
+                if (spawnTimer <= 0 && dronesSpawned < getDronesForWave(wave)) {
+                    spawnDrone();
+                    spawnTimer = Math.max(0.5, 2 - wave * 0.1);
+                }
+
+                // Spawn animals occasionally
+                animalSpawnTimer -= deltaTime;
+                if (animalSpawnTimer <= 0) {
+                    if (Math.random() < 0.3) {
+                        spawnAnimal();
+                    }
+                    animalSpawnTimer = 3 + Math.random() * 5;
+                }
+
+                // Update drones
+                drones = drones.filter(drone => {
+                    const reached = drone.update(deltaTime);
+                    if (reached) {
+                        loseLife();
+                        return false;
+                    }
+                    return !drone.hit;
+                });
+
+                // Update animals
+                animals = animals.filter(animal => {
+                    return !animal.update(deltaTime);
+                });
+
+                checkWaveComplete();
+            }
+
+            // Draw animals (behind drones)
+            animals.forEach(animal => animal.draw());
+
+            // Draw drones
+            [...drones].sort((a, b) => b.z - a.z).forEach(drone => drone.draw());
+
+            // Draw laser beams
+            laserBeams = laserBeams.filter(beam => {
+                beam.life -= deltaTime * 5;
+                if (beam.life > 0) {
+                    ctx.globalAlpha = beam.life;
+                    drawLaserBeam(beam.fromX, beam.fromY, beam.toX, beam.toY);
+                    ctx.globalAlpha = 1;
+                    return true;
+                }
+                return false;
+            });
+
+            // Draw explosions
+            explosions = explosions.filter(exp => {
+                const done = exp.update(deltaTime);
+                exp.draw();
+                return !done;
+            });
+
+            drawCrosshair();
+            ctx.restore();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // ============ INPUT HANDLING ============
+        canvas.addEventListener('mousemove', (e) => {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+        });
+
+        canvas.addEventListener('click', (e) => {
+            if (gameState !== 'playing') return;
+
+            const clickX = e.clientX;
+            const clickY = e.clientY;
+
+            if (laserActive) {
+                playSound('laser');
+            } else {
+                playSound('shotgun');
+                playSound('reload');
+            }
+
+            // Check animal hits first
+            for (let i = animals.length - 1; i >= 0; i--) {
+                if (animals[i].checkHit(clickX, clickY)) {
+                    if (animals[i].type === 'rabbit') {
+                        // Rabbit gives laser power-up!
+                        activateLaser();
+                        animals[i].hit = true;
+                        animals.splice(i, 1);
+                        score += 50;
+                        updateScore();
+                    }
+                    // Zebras are just distractions, can't shoot them
+                    break;
+                }
+            }
+
+            // Check drone hits
+            const sortedDrones = [...drones].sort((a, b) => a.z - b.z);
+
+            for (const drone of sortedDrones) {
+                if (drone.checkHit(clickX, clickY)) {
+                    drone.hit = true;
+                    explosions.push(new Explosion(drone.screenX, drone.screenY, drone.hue));
+                    playSound('droneScream');
+                    score += 100;
+                    updateScore();
+                    screenShake = 0.15;
+
+                    if (laserActive) {
+                        laserBeams.push({
+                            fromX: clickX,
+                            fromY: canvas.height,
+                            toX: drone.screenX,
+                            toY: drone.screenY,
+                            life: 1
+                        });
+                    }
+                    break;
+                }
+            }
+        });
+
+        document.getElementById('startBtn').addEventListener('click', startGame);
+        document.getElementById('restartBtn').addEventListener('click', startGame);
+        canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+        requestAnimationFrame(gameLoop);
+    </script>
+</body>
+</html>
