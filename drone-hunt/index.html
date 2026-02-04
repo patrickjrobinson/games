@@ -2127,7 +2127,7 @@
             aliens = [];
             laserActive = false;
             laserTimeRemaining = 0;
-            alienSpawnTimer = 5;
+            alienSpawnTimer = 3; // First alien appears quickly
 
             // Reset weapon to default
             currentWeapon = 'shotgun';
@@ -2192,22 +2192,18 @@
                     spawnTimer = Math.max(0.5, 2 - wave * 0.1);
                 }
 
-                // Spawn animals occasionally
+                // Spawn animals regularly
                 animalSpawnTimer -= deltaTime;
                 if (animalSpawnTimer <= 0) {
-                    if (Math.random() < 0.3) {
-                        spawnAnimal();
-                    }
-                    animalSpawnTimer = 3 + Math.random() * 5;
+                    spawnAnimal();
+                    animalSpawnTimer = 4 + Math.random() * 4; // Every 4-8 seconds
                 }
 
-                // Spawn aliens occasionally (more frequent in higher waves)
+                // Spawn aliens regularly (more frequent in higher waves)
                 alienSpawnTimer -= deltaTime;
                 if (alienSpawnTimer <= 0) {
-                    if (Math.random() < 0.15 + wave * 0.03) {
-                        spawnAlien();
-                    }
-                    alienSpawnTimer = 5 + Math.random() * 8;
+                    spawnAlien();
+                    alienSpawnTimer = Math.max(3, 10 - wave) + Math.random() * 5; // Faster in higher waves
                 }
 
                 // Update aliens
