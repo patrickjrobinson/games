@@ -2,7 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <title>DRONE HUNTER</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
@@ -17,11 +19,72 @@
             background: #000;
             overflow: hidden;
             font-family: 'Press Start 2P', monospace;
+            touch-action: none;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
         }
 
         #gameCanvas {
             display: block;
             cursor: none;
+            touch-action: none;
+        }
+
+        /* Mobile responsive styles */
+        @media (max-width: 768px) {
+            #startScreen h1 {
+                font-size: 28px !important;
+            }
+            .subtitle {
+                font-size: 10px !important;
+            }
+            .instructions {
+                font-size: 8px !important;
+                padding: 0 20px;
+            }
+            .btn {
+                padding: 12px 30px !important;
+                font-size: 12px !important;
+            }
+            .ui-box {
+                padding: 8px 12px !important;
+            }
+            .ui-label {
+                font-size: 8px !important;
+            }
+            .ui-value {
+                font-size: 16px !important;
+            }
+            #ui {
+                padding: 10px 15px !important;
+            }
+            .life-icon {
+                width: 24px !important;
+                height: 24px !important;
+            }
+            #gameOverScreen h2 {
+                font-size: 24px !important;
+            }
+            #finalScore {
+                font-size: 18px !important;
+            }
+            #waveReached {
+                font-size: 12px !important;
+            }
+            #waveAnnounce .wave-text {
+                font-size: 32px !important;
+            }
+            #waveAnnounce .ready-text {
+                font-size: 14px !important;
+            }
+            #powerupBar {
+                width: 150px !important;
+                height: 15px !important;
+            }
+            #powerupLabel {
+                font-size: 8px !important;
+            }
         }
 
         /* CRT Scanline Overlay */
@@ -286,7 +349,7 @@
         <h1>DRONE HUNTER</h1>
         <p class="subtitle">ARCADE EDITION</p>
         <div class="instructions">
-            CLICK TO SHOOT<br>
+            TAP OR CLICK TO SHOOT<br>
             DESTROY DRONES BEFORE THEY REACH YOU<br>
             SHOOT RABBITS FOR LASER POWER-UP!<br>
             SURVIVE THE WAVES
@@ -304,6 +367,123 @@
     <script>
         // ============ AUDIO SYSTEM ============
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        let musicPlaying = false;
+        let musicGain = null;
+        let musicOscillators = [];
+
+        // Chill arcade background music
+        function startMusic() {
+            if (musicPlaying) return;
+            musicPlaying = true;
+
+            // Master gain for music
+            musicGain = audioCtx.createGain();
+            musicGain.gain.value = 0.12; // Keep it subtle
+            musicGain.connect(audioCtx.destination);
+
+            // Create a filter for warmth
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.value = 1200;
+            filter.connect(musicGain);
+
+            // Bass line pattern (classic arcade vibe)
+            const bassNotes = [55, 55, 73.4, 55, 82.4, 73.4, 55, 55]; // A1, D2, E2 pattern
+            let bassIndex = 0;
+
+            function playBass() {
+                if (!musicPlaying) return;
+
+                const osc = audioCtx.createOscillator();
+                osc.type = 'triangle';
+                osc.frequency.value = bassNotes[bassIndex];
+
+                const gain = audioCtx.createGain();
+                const now = audioCtx.currentTime;
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+
+                osc.connect(gain);
+                gain.connect(filter);
+                osc.start(now);
+                osc.stop(now + 0.4);
+
+                bassIndex = (bassIndex + 1) % bassNotes.length;
+                setTimeout(playBass, 400);
+            }
+
+            // Pad/chord layer (dreamy synth)
+            function playPad() {
+                if (!musicPlaying) return;
+
+                const chords = [
+                    [220, 277.2, 329.6],  // Am
+                    [196, 246.9, 293.7],  // G
+                    [174.6, 220, 261.6],  // F
+                    [196, 246.9, 293.7],  // G
+                ];
+                const chordIndex = Math.floor(Date.now() / 3200) % chords.length;
+
+                chords[chordIndex].forEach((freq, i) => {
+                    const osc = audioCtx.createOscillator();
+                    osc.type = 'sine';
+                    osc.frequency.value = freq;
+
+                    const gain = audioCtx.createGain();
+                    const now = audioCtx.currentTime;
+                    gain.gain.setValueAtTime(0, now);
+                    gain.gain.linearRampToValueAtTime(0.08, now + 0.5);
+                    gain.gain.linearRampToValueAtTime(0.06, now + 2.5);
+                    gain.gain.linearRampToValueAtTime(0, now + 3.2);
+
+                    osc.connect(gain);
+                    gain.connect(filter);
+                    osc.start(now);
+                    osc.stop(now + 3.2);
+                });
+
+                setTimeout(playPad, 3200);
+            }
+
+            // Arpeggio melody (classic arcade feel)
+            const arpeggioNotes = [440, 523, 659, 523, 440, 392, 440, 523];
+            let arpIndex = 0;
+
+            function playArpeggio() {
+                if (!musicPlaying) return;
+
+                if (Math.random() > 0.3) { // Don't play every time for variation
+                    const osc = audioCtx.createOscillator();
+                    osc.type = 'square';
+                    osc.frequency.value = arpeggioNotes[arpIndex];
+
+                    const gain = audioCtx.createGain();
+                    const now = audioCtx.currentTime;
+                    gain.gain.setValueAtTime(0.05, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+
+                    osc.connect(gain);
+                    gain.connect(filter);
+                    osc.start(now);
+                    osc.stop(now + 0.2);
+                }
+
+                arpIndex = (arpIndex + 1) % arpeggioNotes.length;
+                setTimeout(playArpeggio, 200);
+            }
+
+            // Start all layers
+            playBass();
+            setTimeout(playPad, 100);
+            setTimeout(playArpeggio, 800);
+        }
+
+        function stopMusic() {
+            musicPlaying = false;
+            if (musicGain) {
+                musicGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.5);
+            }
+        }
 
         function playSound(type) {
             const now = audioCtx.currentTime;
@@ -1149,6 +1329,7 @@
         function gameOver() {
             gameState = 'gameOver';
             laserActive = false;
+            stopMusic();
             document.getElementById('finalScore').textContent = 'SCORE: ' + score;
             document.getElementById('waveReached').textContent = 'REACHED WAVE ' + wave;
             document.getElementById('gameOverScreen').classList.remove('hidden');
@@ -1159,6 +1340,9 @@
             if (audioCtx.state === 'suspended') {
                 audioCtx.resume();
             }
+
+            // Start background music
+            startMusic();
 
             gameState = 'playing';
             score = 0;
@@ -1283,16 +1467,37 @@
         }
 
         // ============ INPUT HANDLING ============
+        let isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
+        // Mouse events
         canvas.addEventListener('mousemove', (e) => {
             mouseX = e.clientX;
             mouseY = e.clientY;
         });
 
-        canvas.addEventListener('click', (e) => {
-            if (gameState !== 'playing') return;
+        // Touch events for mobile
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            mouseX = touch.clientX;
+            mouseY = touch.clientY;
+        }, { passive: false });
 
-            const clickX = e.clientX;
-            const clickY = e.clientY;
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            mouseX = touch.clientX;
+            mouseY = touch.clientY;
+            handleShoot(touch.clientX, touch.clientY);
+        }, { passive: false });
+
+        // Prevent scrolling on mobile
+        document.body.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+        }, { passive: false });
+
+        function handleShoot(clickX, clickY) {
+            if (gameState !== 'playing') return;
 
             if (laserActive) {
                 playSound('laser');
@@ -1341,11 +1546,19 @@
                     break;
                 }
             }
+        }
+
+        canvas.addEventListener('click', (e) => {
+            handleShoot(e.clientX, e.clientY);
         });
 
         document.getElementById('startBtn').addEventListener('click', startGame);
         document.getElementById('restartBtn').addEventListener('click', startGame);
         canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+        // Prevent default touch behaviors
+        document.addEventListener('gesturestart', (e) => e.preventDefault());
+        document.addEventListener('gesturechange', (e) => e.preventDefault());
 
         requestAnimationFrame(gameLoop);
     </script>
