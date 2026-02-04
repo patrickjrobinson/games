@@ -342,6 +342,58 @@
             margin-top: 10px;
         }
 
+        #waveAnnounce .wave-message {
+            font-size: 24px;
+            color: #0f0;
+            text-shadow: 0 0 20px #0f0, 0 0 40px #0f0;
+            margin-bottom: 20px;
+            animation: messagePulse 0.5s ease-in-out infinite alternate;
+        }
+
+        @keyframes messagePulse {
+            from { transform: scale(1); }
+            to { transform: scale(1.1); }
+        }
+
+        /* Weapon indicator */
+        #weaponIndicator {
+            position: fixed;
+            bottom: 120px;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+            z-index: 50;
+            pointer-events: none;
+        }
+
+        #weaponName {
+            color: #0f0;
+            font-size: 12px;
+            text-shadow: 0 0 10px currentColor;
+            margin-bottom: 5px;
+        }
+
+        #weaponAmmo {
+            color: #ff0;
+            font-size: 10px;
+            text-shadow: 0 0 8px #ff0;
+        }
+
+        @media (max-width: 768px) {
+            #waveAnnounce .wave-message {
+                font-size: 16px !important;
+            }
+            #weaponIndicator {
+                bottom: 85px !important;
+            }
+            #weaponName {
+                font-size: 9px !important;
+            }
+            #weaponAmmo {
+                font-size: 8px !important;
+            }
+        }
+
         /* Fullscreen button - map widget style */
         #fullscreenBtn {
             position: fixed;
@@ -523,8 +575,14 @@
     <div id="powerupBar"><div id="powerupFill"></div></div>
 
     <div id="waveAnnounce">
+        <div id="waveMessage" class="wave-message"></div>
         <div class="wave-text">WAVE <span id="announceWaveNum">1</span></div>
         <div class="ready-text">GET READY</div>
+    </div>
+
+    <div id="weaponIndicator">
+        <div id="weaponName">SHOTGUN</div>
+        <div id="weaponAmmo"></div>
     </div>
 
     <div id="startScreen" class="screen-overlay">
@@ -533,7 +591,8 @@
         <div class="instructions">
             TAP OR CLICK TO SHOOT<br>
             DESTROY DRONES BEFORE THEY REACH YOU<br>
-            SHOOT RABBITS FOR LASER POWER-UP!<br>
+            SHOOT RABBITS FOR LASER POWER-UP<br>
+            SHOOT ALIENS TO STEAL THEIR WEAPONS<br>
             SURVIVE THE WAVES
         </div>
         <button class="btn" id="startBtn">START GAME</button>
@@ -905,6 +964,175 @@
                 boom.start(now + 1);
                 boom.stop(now + 1.5);
             }
+
+            if (type === 'ak47') {
+                // AK-47 rapid fire burst
+                const noise = audioCtx.createBufferSource();
+                const bufferSize = audioCtx.sampleRate * 0.1;
+                const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.05));
+                }
+                noise.buffer = buffer;
+
+                const filter = audioCtx.createBiquadFilter();
+                filter.type = 'bandpass';
+                filter.frequency.value = 1500;
+
+                const gain = audioCtx.createGain();
+                gain.gain.setValueAtTime(0.6, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.1);
+
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(audioCtx.destination);
+                noise.start(now);
+                noise.stop(now + 0.1);
+
+                // Metallic click
+                const click = audioCtx.createOscillator();
+                click.frequency.value = 400;
+                const clickGain = audioCtx.createGain();
+                clickGain.gain.setValueAtTime(0.3, now);
+                clickGain.gain.linearRampToValueAtTime(0, now + 0.02);
+                click.connect(clickGain);
+                clickGain.connect(audioCtx.destination);
+                click.start(now);
+                click.stop(now + 0.02);
+            }
+
+            if (type === 'bazooka') {
+                // Bazooka rocket launch - whoosh then boom
+                const whoosh = audioCtx.createOscillator();
+                whoosh.type = 'sawtooth';
+                whoosh.frequency.setValueAtTime(100, now);
+                whoosh.frequency.exponentialRampToValueAtTime(400, now + 0.3);
+
+                const whooshGain = audioCtx.createGain();
+                whooshGain.gain.setValueAtTime(0.3, now);
+                whooshGain.gain.linearRampToValueAtTime(0, now + 0.3);
+
+                whoosh.connect(whooshGain);
+                whooshGain.connect(audioCtx.destination);
+                whoosh.start(now);
+                whoosh.stop(now + 0.3);
+
+                // Explosion
+                setTimeout(() => {
+                    const now2 = audioCtx.currentTime;
+                    const noise = audioCtx.createBufferSource();
+                    const bufferSize = audioCtx.sampleRate * 0.5;
+                    const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+                    const data = buffer.getChannelData(0);
+                    for (let i = 0; i < bufferSize; i++) {
+                        data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.15));
+                    }
+                    noise.buffer = buffer;
+
+                    const filter = audioCtx.createBiquadFilter();
+                    filter.type = 'lowpass';
+                    filter.frequency.value = 500;
+
+                    const gain = audioCtx.createGain();
+                    gain.gain.setValueAtTime(0.8, now2);
+                    gain.gain.linearRampToValueAtTime(0, now2 + 0.5);
+
+                    noise.connect(filter);
+                    filter.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    noise.start(now2);
+                    noise.stop(now2 + 0.5);
+                }, 150);
+            }
+
+            if (type === 'railgun') {
+                // Railgun charge and release
+                const charge = audioCtx.createOscillator();
+                charge.type = 'sine';
+                charge.frequency.setValueAtTime(200, now);
+                charge.frequency.exponentialRampToValueAtTime(2000, now + 0.15);
+
+                const chargeGain = audioCtx.createGain();
+                chargeGain.gain.setValueAtTime(0.1, now);
+                chargeGain.gain.linearRampToValueAtTime(0.4, now + 0.15);
+                chargeGain.gain.linearRampToValueAtTime(0, now + 0.2);
+
+                charge.connect(chargeGain);
+                chargeGain.connect(audioCtx.destination);
+                charge.start(now);
+                charge.stop(now + 0.2);
+
+                // Electric zap
+                const zap = audioCtx.createOscillator();
+                zap.type = 'sawtooth';
+                zap.frequency.setValueAtTime(3000, now + 0.15);
+                zap.frequency.exponentialRampToValueAtTime(50, now + 0.3);
+
+                const zapGain = audioCtx.createGain();
+                zapGain.gain.setValueAtTime(0.5, now + 0.15);
+                zapGain.gain.linearRampToValueAtTime(0, now + 0.3);
+
+                zap.connect(zapGain);
+                zapGain.connect(audioCtx.destination);
+                zap.start(now + 0.15);
+                zap.stop(now + 0.3);
+            }
+
+            if (type === 'alienScream') {
+                // Alien death scream - weird and otherworldly
+                const osc1 = audioCtx.createOscillator();
+                const osc2 = audioCtx.createOscillator();
+
+                osc1.type = 'sine';
+                osc2.type = 'triangle';
+
+                osc1.frequency.setValueAtTime(1200, now);
+                osc1.frequency.linearRampToValueAtTime(400, now + 0.3);
+                osc2.frequency.setValueAtTime(1250, now);
+                osc2.frequency.linearRampToValueAtTime(300, now + 0.35);
+
+                const gain = audioCtx.createGain();
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.linearRampToValueAtTime(0, now + 0.35);
+
+                // Add vibrato for alien effect
+                const lfo = audioCtx.createOscillator();
+                lfo.frequency.value = 30;
+                const lfoGain = audioCtx.createGain();
+                lfoGain.gain.value = 50;
+                lfo.connect(lfoGain);
+                lfoGain.connect(osc1.frequency);
+                lfoGain.connect(osc2.frequency);
+
+                osc1.connect(gain);
+                osc2.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                lfo.start(now);
+                osc1.start(now);
+                osc2.start(now);
+                lfo.stop(now + 0.35);
+                osc1.stop(now + 0.35);
+                osc2.stop(now + 0.35);
+            }
+
+            if (type === 'weaponPickup') {
+                // Weapon pickup - triumphant ascending notes
+                const notes = [392, 523, 659, 784]; // G4, C5, E5, G5
+                notes.forEach((freq, i) => {
+                    const osc = audioCtx.createOscillator();
+                    osc.type = 'square';
+                    osc.frequency.value = freq;
+                    const gain = audioCtx.createGain();
+                    gain.gain.setValueAtTime(0.2, now + i * 0.08);
+                    gain.gain.linearRampToValueAtTime(0, now + i * 0.08 + 0.12);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(now + i * 0.08);
+                    osc.stop(now + i * 0.08 + 0.15);
+                });
+            }
         }
 
         // ============ GAME SETUP ============
@@ -968,6 +1196,64 @@
         let laserActive = false;
         let laserTimeRemaining = 0;
         const LASER_DURATION = 30;
+
+        // Weapon system
+        const WEAPONS = {
+            shotgun: {
+                name: 'SHOTGUN',
+                color: '#0f0',
+                ammo: Infinity,
+                sound: 'shotgun',
+                spread: true
+            },
+            laser: {
+                name: 'LASER RIFLE',
+                color: '#f00',
+                ammo: 50,
+                sound: 'laser',
+                beam: true
+            },
+            ak47: {
+                name: 'AK-47',
+                color: '#ff0',
+                ammo: 30,
+                sound: 'ak47',
+                rapid: true
+            },
+            bazooka: {
+                name: 'BAZOOKA',
+                color: '#f80',
+                ammo: 5,
+                sound: 'bazooka',
+                explosive: true
+            },
+            railgun: {
+                name: 'RAILGUN',
+                color: '#0ff',
+                ammo: 10,
+                sound: 'railgun',
+                pierce: true
+            }
+        };
+
+        let currentWeapon = 'shotgun';
+        let weaponAmmo = {};
+        let aliens = [];
+        let alienSpawnTimer = 0;
+
+        // Encouraging messages for wave completion
+        const WAVE_MESSAGES = [
+            "FUCK YEAH!",
+            "BRO, THAT WAS SICK!",
+            "STEEZY!",
+            "ABSOLUTELY GOATED!",
+            "LET'S GOOO!",
+            "DUDE, INSANE!",
+            "YOU'RE CRACKED!",
+            "SHEEEESH!",
+            "BUILT DIFFERENT!",
+            "NO CAP, FIRE!"
+        ];
 
         // ============ ANIMAL CLASS ============
         class Animal {
@@ -1137,6 +1423,122 @@
                 // Store hitbox
                 this.screenX = this.x;
                 this.screenY = this.y - this.hopOffset;
+                this.hitRadius = this.size;
+            }
+
+            checkHit(x, y) {
+                const dx = x - this.screenX;
+                const dy = y - this.screenY;
+                return Math.sqrt(dx * dx + dy * dy) < this.hitRadius;
+            }
+        }
+
+        // ============ ALIEN CLASS ============
+        class Alien {
+            constructor() {
+                this.direction = Math.random() < 0.5 ? 1 : -1;
+                this.x = this.direction === 1 ? -100 : canvas.width + 100;
+                this.y = 80 + Math.random() * (canvas.height * 0.3);
+                this.speed = 2.5 + Math.random() * 2;
+                this.hit = false;
+                this.size = 45;
+                this.wobbleOffset = Math.random() * Math.PI * 2;
+                this.screenX = this.x;
+                this.screenY = this.y;
+                this.hitRadius = this.size;
+
+                // Random weapon that the alien carries (excluding shotgun which is default)
+                const weaponTypes = ['laser', 'ak47', 'bazooka', 'railgun'];
+                this.weapon = weaponTypes[Math.floor(Math.random() * weaponTypes.length)];
+                this.glowPhase = 0;
+            }
+
+            update(deltaTime) {
+                if (this.hit) return true;
+
+                this.x += this.speed * this.direction * deltaTime * 60;
+                this.wobbleOffset += 0.05 * deltaTime * 60;
+                this.y += Math.sin(this.wobbleOffset) * 0.8;
+                this.glowPhase += 0.1 * deltaTime * 60;
+
+                // Remove if off screen
+                if (this.direction === 1 && this.x > canvas.width + 150) return true;
+                if (this.direction === -1 && this.x < -150) return true;
+
+                return false;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+
+                const weaponColor = WEAPONS[this.weapon].color;
+                const glowIntensity = 0.5 + Math.sin(this.glowPhase) * 0.3;
+
+                // UFO glow
+                ctx.shadowBlur = 25;
+                ctx.shadowColor = weaponColor;
+
+                // UFO dome (glass)
+                ctx.fillStyle = `rgba(100, 200, 255, ${0.3 + glowIntensity * 0.2})`;
+                ctx.beginPath();
+                ctx.ellipse(0, -this.size * 0.2, this.size * 0.35, this.size * 0.35, 0, Math.PI, 0);
+                ctx.fill();
+
+                // Alien inside dome
+                ctx.fillStyle = '#3f3';
+                ctx.beginPath();
+                ctx.ellipse(0, -this.size * 0.15, this.size * 0.15, this.size * 0.2, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Alien eyes
+                ctx.fillStyle = '#000';
+                ctx.beginPath();
+                ctx.ellipse(-this.size * 0.07, -this.size * 0.2, 4, 6, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.ellipse(this.size * 0.07, -this.size * 0.2, 4, 6, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // UFO body (metallic disc)
+                const gradient = ctx.createLinearGradient(0, -this.size * 0.1, 0, this.size * 0.15);
+                gradient.addColorStop(0, '#888');
+                gradient.addColorStop(0.5, '#ddd');
+                gradient.addColorStop(1, '#666');
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.ellipse(0, 0, this.size * 0.8, this.size * 0.2, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // UFO rim lights
+                ctx.fillStyle = weaponColor;
+                for (let i = 0; i < 8; i++) {
+                    const angle = (i / 8) * Math.PI * 2 + this.glowPhase;
+                    const lx = Math.cos(angle) * this.size * 0.65;
+                    const ly = Math.sin(angle) * this.size * 0.12;
+                    ctx.beginPath();
+                    ctx.arc(lx, ly, 4, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                // UFO bottom (beam emitter)
+                ctx.fillStyle = '#555';
+                ctx.beginPath();
+                ctx.ellipse(0, this.size * 0.15, this.size * 0.25, this.size * 0.08, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Weapon indicator on the side
+                ctx.fillStyle = weaponColor;
+                ctx.shadowBlur = 15;
+                ctx.font = 'bold 10px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(WEAPONS[this.weapon].name, 0, this.size * 0.5);
+
+                ctx.restore();
+
+                // Store hitbox
+                this.screenX = this.x;
+                this.screenY = this.y;
                 this.hitRadius = this.size;
             }
 
@@ -1437,40 +1839,103 @@
             ctx.save();
             ctx.translate(mouseX, mouseY);
 
-            if (laserActive) {
-                // Laser crosshair (red, more aggressive)
-                ctx.strokeStyle = '#f00';
-                ctx.shadowBlur = 20;
-                ctx.shadowColor = '#f00';
-                ctx.lineWidth = 3;
+            const weapon = WEAPONS[currentWeapon];
+            const color = laserActive ? '#f00' : weapon.color;
 
+            ctx.strokeStyle = color;
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = color;
+            ctx.fillStyle = color;
+
+            if (laserActive || currentWeapon === 'laser') {
+                // Laser crosshair (circles)
+                ctx.lineWidth = 3;
                 const size = 30;
                 ctx.beginPath();
                 ctx.arc(0, 0, size, 0, Math.PI * 2);
                 ctx.stroke();
-
                 ctx.beginPath();
                 ctx.arc(0, 0, size * 0.5, 0, Math.PI * 2);
                 ctx.stroke();
-
-                ctx.fillStyle = '#f00';
                 ctx.beginPath();
                 ctx.arc(0, 0, 5, 0, Math.PI * 2);
                 ctx.fill();
-            } else {
-                // Normal shotgun crosshair
-                ctx.strokeStyle = '#0f0';
-                ctx.shadowBlur = 15;
-                ctx.shadowColor = '#0f0';
+            } else if (currentWeapon === 'ak47') {
+                // AK-47 crosshair (small, precise)
                 ctx.lineWidth = 2;
-
-                const size = 25;
-                const gap = 8;
-
+                const size = 15;
+                const gap = 5;
+                ctx.beginPath();
+                ctx.moveTo(0, -size);
+                ctx.lineTo(0, -gap);
+                ctx.moveTo(0, gap);
+                ctx.lineTo(0, size);
+                ctx.moveTo(-size, 0);
+                ctx.lineTo(-gap, 0);
+                ctx.moveTo(gap, 0);
+                ctx.lineTo(size, 0);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.arc(0, 0, 2, 0, Math.PI * 2);
+                ctx.fill();
+            } else if (currentWeapon === 'bazooka') {
+                // Bazooka crosshair (large blast radius indicator)
+                ctx.lineWidth = 3;
+                const size = 50;
+                ctx.setLineDash([10, 5]);
                 ctx.beginPath();
                 ctx.arc(0, 0, size, 0, Math.PI * 2);
                 ctx.stroke();
-
+                ctx.setLineDash([]);
+                ctx.beginPath();
+                ctx.arc(0, 0, 8, 0, Math.PI * 2);
+                ctx.fill();
+                // Explosion indicator lines
+                for (let i = 0; i < 8; i++) {
+                    const angle = (i / 8) * Math.PI * 2;
+                    ctx.beginPath();
+                    ctx.moveTo(Math.cos(angle) * 15, Math.sin(angle) * 15);
+                    ctx.lineTo(Math.cos(angle) * 35, Math.sin(angle) * 35);
+                    ctx.stroke();
+                }
+            } else if (currentWeapon === 'railgun') {
+                // Railgun crosshair (tech/futuristic)
+                ctx.lineWidth = 2;
+                const size = 25;
+                // Outer diamond
+                ctx.beginPath();
+                ctx.moveTo(0, -size);
+                ctx.lineTo(size, 0);
+                ctx.lineTo(0, size);
+                ctx.lineTo(-size, 0);
+                ctx.closePath();
+                ctx.stroke();
+                // Inner targeting
+                ctx.beginPath();
+                ctx.arc(0, 0, 10, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.arc(0, 0, 3, 0, Math.PI * 2);
+                ctx.fill();
+                // Tech lines
+                ctx.beginPath();
+                ctx.moveTo(-size - 5, 0);
+                ctx.lineTo(-size + 5, 0);
+                ctx.moveTo(size - 5, 0);
+                ctx.lineTo(size + 5, 0);
+                ctx.moveTo(0, -size - 5);
+                ctx.lineTo(0, -size + 5);
+                ctx.moveTo(0, size - 5);
+                ctx.lineTo(0, size + 5);
+                ctx.stroke();
+            } else {
+                // Default shotgun crosshair
+                ctx.lineWidth = 2;
+                const size = 25;
+                const gap = 8;
+                ctx.beginPath();
+                ctx.arc(0, 0, size, 0, Math.PI * 2);
+                ctx.stroke();
                 ctx.beginPath();
                 ctx.moveTo(0, -size - 10);
                 ctx.lineTo(0, -gap);
@@ -1481,8 +1946,6 @@
                 ctx.moveTo(gap, 0);
                 ctx.lineTo(size + 10, 0);
                 ctx.stroke();
-
-                ctx.fillStyle = '#0f0';
                 ctx.beginPath();
                 ctx.arc(0, 0, 3, 0, Math.PI * 2);
                 ctx.fill();
@@ -1516,17 +1979,54 @@
             return 3 + (waveNum * 2);
         }
 
+        let waveMessage = '';
+
         function startWave(waveNum) {
             wave = waveNum;
             dronesRemaining = getDronesForWave(waveNum);
             dronesSpawned = 0;
             spawnTimer = 0;
 
+            // Show encouraging message for waves after the first
+            if (waveNum > 1) {
+                waveMessage = WAVE_MESSAGES[Math.floor(Math.random() * WAVE_MESSAGES.length)];
+            } else {
+                waveMessage = '';
+            }
+
+            document.getElementById('waveMessage').textContent = waveMessage;
             document.getElementById('waveDisplay').textContent = waveNum;
             document.getElementById('announceWaveNum').textContent = waveNum;
             document.getElementById('waveAnnounce').classList.add('visible');
-            waveIntroTimer = 2;
+            waveIntroTimer = waveNum > 1 ? 2.5 : 2; // Extra time to see the message
             gameState = 'waveIntro';
+        }
+
+        function spawnAlien() {
+            aliens.push(new Alien());
+        }
+
+        function updateWeaponUI() {
+            const weapon = WEAPONS[currentWeapon];
+            const nameEl = document.getElementById('weaponName');
+            const ammoEl = document.getElementById('weaponAmmo');
+
+            nameEl.textContent = weapon.name;
+            nameEl.style.color = weapon.color;
+
+            if (weapon.ammo === Infinity) {
+                ammoEl.textContent = '';
+            } else {
+                const ammo = weaponAmmo[currentWeapon] || 0;
+                ammoEl.textContent = `AMMO: ${ammo}`;
+                if (ammo <= 0) {
+                    ammoEl.style.color = '#f00';
+                } else if (ammo <= 5) {
+                    ammoEl.style.color = '#f80';
+                } else {
+                    ammoEl.style.color = '#ff0';
+                }
+            }
         }
 
         function spawnDrone() {
@@ -1624,12 +2124,19 @@
             drones = [];
             explosions = [];
             animals = [];
+            aliens = [];
             laserActive = false;
             laserTimeRemaining = 0;
+            alienSpawnTimer = 5;
+
+            // Reset weapon to default
+            currentWeapon = 'shotgun';
+            weaponAmmo = {};
 
             updateScore();
             updateLives();
             updatePowerupBar();
+            updateWeaponUI();
 
             document.getElementById('startScreen').classList.add('hidden');
             document.getElementById('gameOverScreen').classList.add('hidden');
@@ -1694,6 +2201,20 @@
                     animalSpawnTimer = 3 + Math.random() * 5;
                 }
 
+                // Spawn aliens occasionally (more frequent in higher waves)
+                alienSpawnTimer -= deltaTime;
+                if (alienSpawnTimer <= 0) {
+                    if (Math.random() < 0.15 + wave * 0.03) {
+                        spawnAlien();
+                    }
+                    alienSpawnTimer = 5 + Math.random() * 8;
+                }
+
+                // Update aliens
+                aliens = aliens.filter(alien => {
+                    return !alien.update(deltaTime);
+                });
+
                 // Update drones
                 drones = drones.filter(drone => {
                     const reached = drone.update(deltaTime);
@@ -1714,6 +2235,9 @@
 
             // Draw animals (behind drones)
             animals.forEach(animal => animal.draw());
+
+            // Draw aliens (UFOs flying through)
+            aliens.forEach(alien => alien.draw());
 
             // Draw drones
             [...drones].sort((a, b) => b.z - a.z).forEach(drone => drone.draw());
@@ -1776,14 +2300,51 @@
         function handleShoot(clickX, clickY) {
             if (gameState !== 'playing' || isPaused) return;
 
-            if (laserActive) {
-                playSound('laser');
+            const weapon = WEAPONS[currentWeapon];
+
+            // Check ammo for non-shotgun weapons
+            if (weapon.ammo !== Infinity) {
+                if (!weaponAmmo[currentWeapon] || weaponAmmo[currentWeapon] <= 0) {
+                    // Out of ammo, switch back to shotgun
+                    currentWeapon = 'shotgun';
+                    updateWeaponUI();
+                    playSound('shotgun');
+                    playSound('reload');
+                } else {
+                    weaponAmmo[currentWeapon]--;
+                    playSound(weapon.sound);
+                    updateWeaponUI();
+                }
             } else {
-                playSound('shotgun');
-                playSound('reload');
+                playSound(weapon.sound);
+                if (currentWeapon === 'shotgun') playSound('reload');
             }
 
-            // Check animal hits first
+            // Check alien hits first (highest priority - gives weapons!)
+            for (let i = aliens.length - 1; i >= 0; i--) {
+                if (aliens[i].checkHit(clickX, clickY)) {
+                    const alien = aliens[i];
+                    alien.hit = true;
+
+                    // Player gets the alien's weapon!
+                    currentWeapon = alien.weapon;
+                    weaponAmmo[alien.weapon] = WEAPONS[alien.weapon].ammo;
+                    updateWeaponUI();
+                    playSound('weaponPickup');
+                    playSound('alienScream');
+
+                    // Create explosion
+                    explosions.push(new Explosion(alien.screenX, alien.screenY, 120));
+                    score += 200;
+                    updateScore();
+                    screenShake = 0.2;
+
+                    aliens.splice(i, 1);
+                    return; // Don't shoot through to other targets
+                }
+            }
+
+            // Check animal hits
             for (let i = animals.length - 1; i >= 0; i--) {
                 if (animals[i].checkHit(clickX, clickY)) {
                     if (animals[i].type === 'rabbit') {
@@ -1801,17 +2362,35 @@
 
             // Check drone hits
             const sortedDrones = [...drones].sort((a, b) => a.z - b.z);
+            let hitCount = 0;
+            const maxHits = weapon.pierce ? 3 : 1; // Railgun pierces through multiple drones
+            const explosiveRadius = weapon.explosive ? 100 : 0; // Bazooka has splash damage
 
             for (const drone of sortedDrones) {
-                if (drone.checkHit(clickX, clickY)) {
+                if (hitCount >= maxHits) break;
+
+                let isHit = drone.checkHit(clickX, clickY);
+
+                // Bazooka splash damage
+                if (!isHit && explosiveRadius > 0) {
+                    const dx = clickX - drone.screenX;
+                    const dy = clickY - drone.screenY;
+                    if (Math.sqrt(dx * dx + dy * dy) < explosiveRadius) {
+                        isHit = true;
+                    }
+                }
+
+                if (isHit) {
                     drone.hit = true;
                     explosions.push(new Explosion(drone.screenX, drone.screenY, drone.hue));
                     playSound('droneScream');
                     score += 100;
                     updateScore();
-                    screenShake = 0.15;
+                    screenShake = weapon.explosive ? 0.4 : 0.15;
+                    hitCount++;
 
-                    if (laserActive) {
+                    // Visual effects for special weapons
+                    if (weapon.beam || laserActive) {
                         laserBeams.push({
                             fromX: clickX,
                             fromY: canvas.height,
@@ -1820,8 +2399,12 @@
                             life: 1
                         });
                     }
-                    break;
                 }
+            }
+
+            // Bazooka creates big explosion effect even on miss
+            if (weapon.explosive) {
+                explosions.push(new Explosion(clickX, clickY, 30));
             }
         }
 
