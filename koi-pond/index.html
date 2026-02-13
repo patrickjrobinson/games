@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Koi Pond - For Cats</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            overflow: hidden;
+            background: #1a3a4a;
+            cursor: none;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        #controls {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            z-index: 100;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        #controls:hover {
+            opacity: 1;
+        }
+
+        .btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            margin: 2px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+    </style>
+</head>
+<body>
+    <div id="controls">
+        <button class="btn" onclick="toggleSound()">🔇 Sound</button>
+        <button class="btn" onclick="addFish()">+ Fish</button>
+        <button class="btn" onclick="toggleFullscreen()">⛶ Fullscreen</button>
+    </div>
+    <canvas id="pond"></canvas>
+
+    <script>
+        const canvas = document.getElementById('pond');
+        const ctx = canvas.getContext('2d');
+
+        let width, height;
+        let soundEnabled = false;
+        let audioCtx = null;
+
+        // Resize canvas to fill screen
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        }
+        resize();
+        window.addEventListener('resize', resize);
+
+        // Color palettes for koi fish - soft, muted colors
+        const koiColors = [
+            { body: '#f4a460', spots: '#ffffff', fin: '#ff8c69' },  // Orange/white
+            { body: '#ffffff', spots: '#ff6b6b', fin: '#ffb6c1' },  // White/red
+            { body: '#ffd700', spots: '#ffffff', fin: '#ffec8b' },  // Gold/white
+            { body: '#e8e8e8', spots: '#ff8c00', fin: '#dcdcdc' },  // Silver/orange
+            { body: '#ff7f50', spots: '#000000', fin: '#ff6347' },  // Coral/black
+            { body: '#ffe4c4', spots: '#ff4500', fin: '#ffdab9' },  // Cream/red
+        ];
+
+        // Fish class - slow, graceful movement
+        class Koi {
+            constructor() {
+                this.reset();
+                // Start at random position
+                this.x = Math.random() * width;
+                this.y = Math.random() * height;
+            }
+
+            reset() {
+                const colors = koiColors[Math.floor(Math.random() * koiColors.length)];
+                this.bodyColor = colors.body;
+                this.spotColor = colors.spots;
+                this.finColor = colors.fin;
+
+                this.size = 30 + Math.random() * 40;  // Varied sizes
+                this.x = Math.random() * width;
+                this.y = Math.random() * height;
+                this.angle = Math.random() * Math.PI * 2;
+                this.speed = 0.3 + Math.random() * 0.4;  // Very slow
+                this.turnSpeed = 0.005 + Math.random() * 0.01;
+                this.wobble = 0;
+                this.wobbleSpeed = 0.02 + Math.random() * 0.02;
+                this.targetAngle = this.angle;
+                this.depth = Math.random();  // For layering
+            }
+
+            update() {
+                // Gentle wobbling motion
+                this.wobble += this.wobbleSpeed;
+
+                // Occasionally change direction (very gradually)
+                if (Math.random() < 0.005) {
+                    this.targetAngle = this.angle + (Math.random() - 0.5) * Math.PI * 0.5;
+                }
+
+                // Slowly turn toward target angle
+                let angleDiff = this.targetAngle - this.angle;
+                while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+                while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+                this.angle += angleDiff * 0.02;
+
+                // Move forward
+                this.x += Math.cos(this.angle) * this.speed;
+                this.y += Math.sin(this.angle) * this.speed;
+
+                // Soft boundary behavior - turn away from edges
+                const margin = 100;
+                if (this.x < margin) this.targetAngle = 0;
+                if (this.x > width - margin) this.targetAngle = Math.PI;
+                if (this.y < margin) this.targetAngle = Math.PI / 2;
+                if (this.y > height - margin) this.targetAngle = -Math.PI / 2;
+
+                // Wrap around if they somehow get out
+                if (this.x < -this.size * 2) this.x = width + this.size;
+                if (this.x > width + this.size * 2) this.x = -this.size;
+                if (this.y < -this.size * 2) this.y = height + this.size;
+                if (this.y > height + this.size * 2) this.y = -this.size;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.angle);
+
+                const s = this.size;
+                const tailWag = Math.sin(this.wobble) * 0.3;
+
+                // Shadow underneath
+                ctx.fillStyle = 'rgba(0,0,0,0.1)';
+                ctx.beginPath();
+                ctx.ellipse(5, 8, s * 0.8, s * 0.3, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Tail fin
+                ctx.fillStyle = this.finColor;
+                ctx.beginPath();
+                ctx.moveTo(-s * 0.8, 0);
+                ctx.quadraticCurveTo(-s * 1.2, -s * 0.4 + tailWag * s * 0.3, -s * 1.4, -s * 0.3 + tailWag * s * 0.5);
+                ctx.quadraticCurveTo(-s * 1.1, tailWag * s * 0.2, -s * 1.4, s * 0.3 + tailWag * s * 0.5);
+                ctx.quadraticCurveTo(-s * 1.2, s * 0.4 + tailWag * s * 0.3, -s * 0.8, 0);
+                ctx.fill();
+
+                // Body
+                ctx.fillStyle = this.bodyColor;
+                ctx.beginPath();
+                ctx.ellipse(0, 0, s, s * 0.35, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Spots/patterns
+                ctx.fillStyle = this.spotColor;
+                ctx.globalAlpha = 0.7;
+                for (let i = 0; i < 3; i++) {
+                    const spotX = -s * 0.3 + i * s * 0.35;
+                    const spotY = (Math.sin(i * 2.5) * s * 0.1);
+                    const spotSize = s * 0.15 + Math.random() * s * 0.1;
+                    ctx.beginPath();
+                    ctx.ellipse(spotX, spotY, spotSize, spotSize * 0.7, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.globalAlpha = 1;
+
+                // Dorsal fin
+                ctx.fillStyle = this.finColor;
+                ctx.beginPath();
+                ctx.moveTo(-s * 0.2, -s * 0.3);
+                ctx.quadraticCurveTo(0, -s * 0.6, s * 0.3, -s * 0.3);
+                ctx.quadraticCurveTo(0, -s * 0.35, -s * 0.2, -s * 0.3);
+                ctx.fill();
+
+                // Side fins
+                const finWave = Math.sin(this.wobble * 0.5) * 0.2;
+                ctx.beginPath();
+                ctx.moveTo(-s * 0.1, s * 0.25);
+                ctx.quadraticCurveTo(-s * 0.3, s * 0.5 + finWave * s, -s * 0.1, s * 0.6 + finWave * s * 0.5);
+                ctx.quadraticCurveTo(0, s * 0.4, -s * 0.1, s * 0.25);
+                ctx.fill();
+
+                // Eye
+                ctx.fillStyle = '#222';
+                ctx.beginPath();
+                ctx.arc(s * 0.6, -s * 0.05, s * 0.08, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Eye highlight
+                ctx.fillStyle = '#fff';
+                ctx.beginPath();
+                ctx.arc(s * 0.62, -s * 0.07, s * 0.03, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.restore();
+            }
+        }
+
+        // Bubble class - gentle rising bubbles
+        class Bubble {
+            constructor() {
+                this.reset();
+            }
+
+            reset() {
+                this.x = Math.random() * width;
+                this.y = height + 20;
+                this.size = 2 + Math.random() * 6;
+                this.speed = 0.3 + Math.random() * 0.5;
+                this.wobble = Math.random() * Math.PI * 2;
+                this.wobbleSpeed = 0.02 + Math.random() * 0.02;
+            }
+
+            update() {
+                this.y -= this.speed;
+                this.wobble += this.wobbleSpeed;
+                this.x += Math.sin(this.wobble) * 0.3;
+
+                if (this.y < -20) {
+                    this.reset();
+                }
+            }
+
+            draw() {
+                ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.stroke();
+
+                // Highlight
+                ctx.fillStyle = 'rgba(255,255,255,0.2)';
+                ctx.beginPath();
+                ctx.arc(this.x - this.size * 0.3, this.y - this.size * 0.3, this.size * 0.3, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        // Lily pad class
+        class LilyPad {
+            constructor() {
+                this.x = Math.random() * width;
+                this.y = Math.random() * height;
+                this.size = 40 + Math.random() * 30;
+                this.rotation = Math.random() * Math.PI * 2;
+                this.rotationSpeed = (Math.random() - 0.5) * 0.001;
+                this.wobble = Math.random() * Math.PI * 2;
+            }
+
+            update() {
+                this.rotation += this.rotationSpeed;
+                this.wobble += 0.01;
+                // Gentle floating motion
+                this.x += Math.sin(this.wobble) * 0.1;
+                this.y += Math.cos(this.wobble * 0.7) * 0.05;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.rotation);
+
+                // Pad
+                ctx.fillStyle = '#3d6b4f';
+                ctx.beginPath();
+                ctx.arc(0, 0, this.size, 0.2, Math.PI * 2 - 0.2);
+                ctx.lineTo(0, 0);
+                ctx.fill();
+
+                // Lighter center
+                ctx.fillStyle = '#4a7d5e';
+                ctx.beginPath();
+                ctx.arc(0, 0, this.size * 0.6, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Vein lines
+                ctx.strokeStyle = '#2d5a3f';
+                ctx.lineWidth = 1;
+                for (let i = 0; i < 6; i++) {
+                    const angle = (i / 6) * Math.PI * 2 + 0.3;
+                    ctx.beginPath();
+                    ctx.moveTo(0, 0);
+                    ctx.lineTo(Math.cos(angle) * this.size * 0.8, Math.sin(angle) * this.size * 0.8);
+                    ctx.stroke();
+                }
+
+                ctx.restore();
+            }
+        }
+
+        // Water ripple effect
+        class Ripple {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.size = 0;
+                this.maxSize = 50 + Math.random() * 50;
+                this.alpha = 0.3;
+            }
+
+            update() {
+                this.size += 0.5;
+                this.alpha -= 0.003;
+                return this.alpha > 0;
+            }
+
+            draw() {
+                ctx.strokeStyle = `rgba(255,255,255,${this.alpha})`;
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+        }
+
+        // Initialize objects
+        let fish = [];
+        let bubbles = [];
+        let lilyPads = [];
+        let ripples = [];
+
+        function init() {
+            fish = [];
+            bubbles = [];
+            lilyPads = [];
+            ripples = [];
+
+            // Create fish
+            for (let i = 0; i < 6; i++) {
+                fish.push(new Koi());
+            }
+
+            // Create bubbles
+            for (let i = 0; i < 10; i++) {
+                const b = new Bubble();
+                b.y = Math.random() * height;  // Start at random heights
+                bubbles.push(b);
+            }
+
+            // Create lily pads
+            for (let i = 0; i < 4; i++) {
+                lilyPads.push(new LilyPad());
+            }
+        }
+
+        init();
+
+        // Occasionally add ripples
+        setInterval(() => {
+            if (Math.random() < 0.3) {
+                ripples.push(new Ripple(Math.random() * width, Math.random() * height));
+            }
+        }, 2000);
+
+        // Draw water gradient background
+        function drawWater() {
+            const gradient = ctx.createLinearGradient(0, 0, 0, height);
+            gradient.addColorStop(0, '#1a4a5e');
+            gradient.addColorStop(0.5, '#1a3d4d');
+            gradient.addColorStop(1, '#153040');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, width, height);
+
+            // Subtle caustic light effect
+            ctx.fillStyle = 'rgba(255,255,255,0.02)';
+            const time = Date.now() * 0.0005;
+            for (let i = 0; i < 5; i++) {
+                const x = (Math.sin(time + i) * 0.5 + 0.5) * width;
+                const y = (Math.cos(time * 0.7 + i * 2) * 0.5 + 0.5) * height;
+                ctx.beginPath();
+                ctx.ellipse(x, y, 200, 100, time + i, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        // Main animation loop
+        function animate() {
+            drawWater();
+
+            // Update and draw lily pads (behind fish)
+            lilyPads.forEach(pad => {
+                pad.update();
+                pad.draw();
+            });
+
+            // Update and draw ripples
+            ripples = ripples.filter(r => {
+                r.draw();
+                return r.update();
+            });
+
+            // Sort fish by depth for proper layering
+            fish.sort((a, b) => a.depth - b.depth);
+
+            // Update and draw fish
+            fish.forEach(f => {
+                f.update();
+                f.draw();
+            });
+
+            // Update and draw bubbles (in front)
+            bubbles.forEach(b => {
+                b.update();
+                b.draw();
+            });
+
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+
+        // Sound functions (gentle water ambience)
+        function initAudio() {
+            if (audioCtx) return;
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+
+        function playWaterSound() {
+            if (!soundEnabled || !audioCtx) return;
+
+            // Create gentle noise for water ambience
+            const bufferSize = audioCtx.sampleRate * 2;
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = (Math.random() * 2 - 1) * 0.1;
+            }
+
+            const source = audioCtx.createBufferSource();
+            source.buffer = buffer;
+            source.loop = true;
+
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.value = 400;
+
+            const gain = audioCtx.createGain();
+            gain.gain.value = 0.05;
+
+            source.connect(filter);
+            filter.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            source.start();
+            return { source, gain };
+        }
+
+        let currentSound = null;
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            if (soundEnabled) {
+                initAudio();
+                currentSound = playWaterSound();
+            } else if (currentSound) {
+                currentSound.gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.5);
+                setTimeout(() => {
+                    currentSound.source.stop();
+                    currentSound = null;
+                }, 500);
+            }
+        }
+
+        function addFish() {
+            fish.push(new Koi());
+        }
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        // Hide cursor after inactivity
+        let cursorTimeout;
+        document.addEventListener('mousemove', () => {
+            document.body.style.cursor = 'auto';
+            clearTimeout(cursorTimeout);
+            cursorTimeout = setTimeout(() => {
+                document.body.style.cursor = 'none';
+            }, 3000);
+        });
+    </script>
+</body>
+</html>
