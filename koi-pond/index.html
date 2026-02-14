@@ -251,6 +251,20 @@
             mouseY = e.clientY;
         });
 
+        // Touch support for mobile
+        document.addEventListener('touchmove', (e) => {
+            if (fishingMode) e.preventDefault();
+            const touch = e.touches[0];
+            mouseX = touch.clientX;
+            mouseY = touch.clientY;
+        }, { passive: false });
+
+        document.addEventListener('touchstart', (e) => {
+            const touch = e.touches[0];
+            mouseX = touch.clientX;
+            mouseY = touch.clientY;
+        }, { passive: true });
+
         const koiPatterns = [
             { base: [235, 120, 60], markings: [[255, 255, 255]] },
             { base: [255, 250, 245], markings: [[200, 50, 30]] },
@@ -346,11 +360,11 @@
                             lastClickTime = Date.now();
                             // Different message based on fish size
                             if (this.fightStrength > 1.2) {
-                                showInstruction("BIG ONE! Click fast to reel in!");
+                                showInstruction("BIG ONE! Tap fast to reel in!");
                             } else if (this.fightStrength > 0.8) {
-                                showInstruction("Fish on! Click to reel in!");
+                                showInstruction("Fish on! Tap to reel in!");
                             } else {
-                                showInstruction("Got a small one! Click to reel in.");
+                                showInstruction("Got a small one! Tap to reel in.");
                             }
                         }
                     } else {
@@ -500,7 +514,7 @@
                         // Update line length to actual distance from rod tip to lure
                         lineLength = Math.sqrt(Math.pow(this.x - rodTipX, 2) + Math.pow(this.y - rodTipY, 2));
                         maxLineLength = lineLength;
-                        showInstruction("Move rod to jig the lure! Click to reel in.");
+                        showInstruction("Move to jig the lure! Tap to reel in.");
                     } else {
                         // Smooth arc trajectory
                         const t = this.castProgress;
@@ -915,7 +929,7 @@
             // Check if line fully reeled in during jigging (no fish)
             if (castPhase === 'jigging' && lineLength <= 20) {
                 // Fully reeled in, click to drop lure again
-                showInstruction("Line reeled in! Click to drop your lure.");
+                showInstruction("Line reeled in! Tap to drop your lure.");
                 castPhase = 'ready';
                 lure = null;
                 lineLength = 0;
@@ -976,7 +990,7 @@
 
             if (escaped) {
                 // Fish got away!
-                showInstruction("The fish got away! Click to reel in your lure.");
+                showInstruction("The fish got away! Tap to reel in.");
                 hookedFish.hooked = false;
 
                 // Create lure at left edge of screen where fish escaped
@@ -1065,7 +1079,7 @@
                 rodBaseY = height / 2 + 50;
                 castPhase = 'ready';
                 caughtFish = [];
-                showInstruction("Click anywhere to drop your lure!");
+                showInstruction("Tap anywhere to drop your lure!");
             } else {
                 castPhase = 'ready';
                 lure = null;
@@ -1123,6 +1137,54 @@
                 castPhase = 'jigging';
             }
         });
+
+        // Touch handler for mobile - tap to place lure and reel
+        canvas.addEventListener('touchstart', (e) => {
+            if (!fishingMode) return;
+            e.preventDefault();
+
+            const touch = e.touches[0];
+            const touchX = touch.clientX;
+            const touchY = touch.clientY;
+
+            if (castPhase === 'hooked') {
+                // Tap to reel in the fish
+                lastClickTime = Date.now();
+                const baseReelAmount = 25;
+                const reelAmount = baseReelAmount / (hookedFish ? hookedFish.fightStrength : 1);
+                lineLength -= reelAmount;
+                if (lineLength < 0) lineLength = 0;
+                reelAngle += 0.5;
+                return;
+            }
+
+            if (castPhase === 'jigging') {
+                // Tap to reel in line
+                lastClickTime = Date.now();
+                lineLength -= 15;
+                if (lineLength < 0) lineLength = 0;
+                reelAngle += 0.4;
+                return;
+            }
+
+            if (castPhase === 'ready') {
+                // Tap to place lure
+                const targetX = Math.max(80, Math.min(width - 150, touchX));
+                const targetY = Math.max(80, Math.min(height - 120, touchY));
+
+                lure = new Lure(targetX, targetY, targetX, targetY, 0);
+                lure.casting = false;
+                lure.inWater = true;
+                lure.x = targetX;
+                lure.y = targetY;
+
+                lineLength = Math.sqrt(Math.pow(targetX - rodTipX, 2) + Math.pow(targetY - rodTipY, 2));
+                maxLineLength = lineLength;
+
+                splashes.push(new Splash(targetX, targetY));
+                castPhase = 'jigging';
+            }
+        }, { passive: false });
 
         function showCatchMessage() {
             const msgs = ['Nice catch!', 'Got one!', 'Great job!', 'Beauty!'];
