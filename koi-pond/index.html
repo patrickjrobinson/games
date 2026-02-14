@@ -3,24 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Koi Pond - For Cats</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+    <title>Koi Stream - For Cats</title>
 
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="kenvins_koi.png">
+    <link rel="apple-touch-icon" href="kenvins_koi.png">
+
+    <!-- Open Graph meta tags for link previews -->
+    <meta property="og:title" content="Koi Stream - For Cats">
+    <meta property="og:description" content="A relaxing koi pond simulation for your cat to watch">
+    <meta property="og:image" content="https://patrickjrobinson.github.io/games/koi-pond/kenvins_koi.png">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://patrickjrobinson.github.io/games/koi-pond/">
+
+    <!-- Twitter Card meta tags -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Koi Stream - For Cats">
+    <meta name="twitter:description" content="A relaxing koi pond simulation for your cat to watch">
+    <meta name="twitter:image" content="https://patrickjrobinson.github.io/games/koi-pond/kenvins_koi.png">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             overflow: hidden;
             background: #1a3a4a;
-            cursor: none;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
-
-        canvas {
-            display: block;
-        }
-
+        canvas { display: block; }
         #controls {
             position: fixed;
             top: 10px;
@@ -29,11 +37,7 @@
             opacity: 0;
             transition: opacity 0.3s;
         }
-
-        #controls:hover {
-            opacity: 1;
-        }
-
+        #controls:hover { opacity: 1; }
         .btn {
             background: rgba(255,255,255,0.2);
             border: none;
@@ -44,18 +48,154 @@
             cursor: pointer;
             font-size: 12px;
         }
+        .btn:hover { background: rgba(255,255,255,0.3); }
+        .btn.active { background: rgba(100,180,120,0.5); }
 
-        .btn:hover {
-            background: rgba(255,255,255,0.3);
+        #settings-panel {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(20, 40, 50, 0.95);
+            border-radius: 16px;
+            padding: 24px;
+            color: white;
+            z-index: 200;
+            display: none;
+            min-width: 300px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
         }
+        #settings-panel.open { display: block; }
+        #settings-panel h2 { margin-bottom: 20px; font-weight: 500; font-size: 18px; text-align: center; }
+        .setting-group { margin-bottom: 16px; }
+        .setting-group label { display: block; margin-bottom: 6px; font-size: 13px; color: rgba(255,255,255,0.8); }
+        .setting-group input[type="range"] {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(255,255,255,0.2);
+            outline: none;
+            -webkit-appearance: none;
+        }
+        .setting-group input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #5a9aaa;
+            cursor: pointer;
+        }
+        .setting-value { text-align: right; font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 4px; }
+        .settings-buttons { display: flex; gap: 8px; margin-top: 20px; }
+        .settings-buttons button { flex: 1; padding: 10px; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; }
+        .btn-close { background: #5a9aaa; color: white; }
+        .btn-reset { background: rgba(255,255,255,0.15); color: white; }
+
+        #overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 150;
+            display: none;
+        }
+        #overlay.open { display: block; }
+
+        #instructions {
+            position: fixed;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 12px;
+            font-size: 14px;
+            text-align: center;
+            display: none;
+            z-index: 50;
+            max-width: 350px;
+            line-height: 1.5;
+        }
+        #instructions.visible { display: block; }
+
+        #score {
+            position: fixed;
+            top: 15px;
+            left: 15px;
+            color: white;
+            font-size: 18px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        #score.visible { opacity: 0.8; }
+
+        #catch-message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 32px;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+        }
+        #catch-message.visible { opacity: 1; }
     </style>
 </head>
 <body>
     <div id="controls">
-        <button class="btn" onclick="toggleSound()">🔇 Sound</button>
-        <button class="btn" onclick="addFish()">+ Fish</button>
-        <button class="btn" onclick="toggleFullscreen()">⛶ Fullscreen</button>
+        <button class="btn" id="fish-btn" onclick="toggleFishing()">Cast Line</button>
+        <button class="btn" onclick="toggleSettings()">Settings</button>
+        <button class="btn" onclick="toggleSound()">Sound</button>
+        <button class="btn" onclick="toggleFullscreen()">Fullscreen</button>
     </div>
+
+    <div id="overlay" onclick="toggleSettings()"></div>
+
+    <div id="settings-panel">
+        <h2>Stream Settings</h2>
+        <div class="setting-group">
+            <label>Stream Flow Speed</label>
+            <input type="range" id="flow-speed" min="0" max="100" value="30">
+            <div class="setting-value" id="flow-speed-val">Gentle</div>
+        </div>
+        <div class="setting-group">
+            <label>Fish Swimming Speed</label>
+            <input type="range" id="fish-speed" min="0" max="100" value="60">
+            <div class="setting-value" id="fish-speed-val">Normal</div>
+        </div>
+        <div class="setting-group">
+            <label>Fish Size</label>
+            <input type="range" id="fish-size" min="0" max="100" value="50">
+            <div class="setting-value" id="fish-size-val">Medium</div>
+        </div>
+        <div class="setting-group">
+            <label>Number of Fish</label>
+            <input type="range" id="fish-count" min="1" max="12" value="5">
+            <div class="setting-value" id="fish-count-val">5 fish</div>
+        </div>
+        <div class="setting-group">
+            <label>Fish Brightness</label>
+            <input type="range" id="fish-brightness" min="0" max="100" value="50">
+            <div class="setting-value" id="fish-brightness-val">Normal</div>
+        </div>
+        <div class="setting-group">
+            <label>Water Darkness</label>
+            <input type="range" id="water-darkness" min="0" max="100" value="50">
+            <div class="setting-value" id="water-darkness-val">Normal</div>
+        </div>
+        <div class="settings-buttons">
+            <button class="btn-reset" onclick="resetSettings()">Reset</button>
+            <button class="btn-close" onclick="toggleSettings()">Done</button>
+        </div>
+    </div>
+
+    <div id="instructions"></div>
+    <div id="score">Caught: 0</div>
+    <div id="catch-message"></div>
+
     <canvas id="pond"></canvas>
 
     <script>
@@ -65,8 +205,37 @@
         let width, height;
         let soundEnabled = false;
         let audioCtx = null;
+        let settingsOpen = false;
 
-        // Resize canvas to fill screen
+        // Fishing state
+        let fishingMode = false;
+        let castPhase = 'ready'; // ready, jigging, hooked
+        let lure = null;
+        let hookedFish = null;
+        let reelAngle = 0;
+        let lineLength = 0;
+        let maxLineLength = 0;
+        let rodBaseX = 0, rodBaseY = 0;
+        let rodTipX = 0, rodTipY = 0;
+        let caughtFish = []; // Array of caught fish to display at bottom
+        let fishFightTimer = 0;
+        let lastClickTime = 0;
+        let rodBend = 0; // Current rod bend amount (0-1)
+        let score = 0;
+        let mouseX = 0, mouseY = 0;
+
+        // Rod properties
+        const ROD_LENGTH = 350; // Long enough to reach center of screen
+
+        let settings = {
+            flowSpeed: 0.5,
+            fishSpeed: 0.8,
+            fishSize: 1.0,
+            fishCount: 5,
+            fishBrightness: 1.0,
+            waterDarkness: 0.5
+        };
+
         function resize() {
             width = canvas.width = window.innerWidth;
             height = canvas.height = window.innerHeight;
@@ -74,259 +243,358 @@
         resize();
         window.addEventListener('resize', resize);
 
-        // Color palettes for koi fish - soft, muted colors
-        const koiColors = [
-            { body: '#f4a460', spots: '#ffffff', fin: '#ff8c69' },  // Orange/white
-            { body: '#ffffff', spots: '#ff6b6b', fin: '#ffb6c1' },  // White/red
-            { body: '#ffd700', spots: '#ffffff', fin: '#ffec8b' },  // Gold/white
-            { body: '#e8e8e8', spots: '#ff8c00', fin: '#dcdcdc' },  // Silver/orange
-            { body: '#ff7f50', spots: '#000000', fin: '#ff6347' },  // Coral/black
-            { body: '#ffe4c4', spots: '#ff4500', fin: '#ffdab9' },  // Cream/red
+        document.addEventListener('mousemove', (e) => {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+        });
+
+        const koiPatterns = [
+            { base: [235, 120, 60], markings: [[255, 255, 255]] },
+            { base: [255, 250, 245], markings: [[200, 50, 30]] },
+            { base: [220, 180, 60], markings: [[255, 255, 255]] },
+            { base: [40, 40, 45], markings: [[255, 100, 30], [255, 255, 255]] },
+            { base: [230, 230, 235], markings: [[30, 30, 35], [200, 60, 30]] },
+            { base: [200, 90, 50], markings: [[255, 255, 255], [30, 30, 35]] },
         ];
 
-        // Fish class - slow, graceful movement
+        function rgbToString(rgb, brightness = 1) {
+            return `rgb(${Math.min(255, Math.floor(rgb[0] * brightness))}, ${Math.min(255, Math.floor(rgb[1] * brightness))}, ${Math.min(255, Math.floor(rgb[2] * brightness))})`;
+        }
+
+        // ===== KOI FISH =====
         class Koi {
             constructor() {
-                this.reset();
-                // Start at random position
-                this.x = Math.random() * width;
-                this.y = Math.random() * height;
-            }
-
-            reset() {
-                const colors = koiColors[Math.floor(Math.random() * koiColors.length)];
-                this.bodyColor = colors.body;
-                this.spotColor = colors.spots;
-                this.finColor = colors.fin;
-
-                this.size = 30 + Math.random() * 40;  // Varied sizes
-                this.x = Math.random() * width;
-                this.y = Math.random() * height;
-                this.angle = Math.random() * Math.PI * 2;
-                this.speed = 0.3 + Math.random() * 0.4;  // Very slow
-                this.turnSpeed = 0.005 + Math.random() * 0.01;
-                this.wobble = 0;
-                this.wobbleSpeed = 0.02 + Math.random() * 0.02;
+                this.pattern = koiPatterns[Math.floor(Math.random() * koiPatterns.length)];
+                // More size variation: small (30-50), medium (50-80), large (80-120)
+                const sizeRoll = Math.random();
+                if (sizeRoll < 0.5) {
+                    // 50% small fish
+                    this.baseLength = 30 + Math.random() * 25;
+                } else if (sizeRoll < 0.85) {
+                    // 35% medium fish
+                    this.baseLength = 55 + Math.random() * 30;
+                } else {
+                    // 15% large fish
+                    this.baseLength = 85 + Math.random() * 40;
+                }
+                this.x = -100 - Math.random() * 200;
+                this.y = 80 + Math.random() * (height - 160);
+                this.angle = (Math.random() - 0.5) * 0.4;
+                // Bigger fish swim slightly slower
+                this.baseSpeed = 1.4 - (this.baseLength / 200);
+                this.phase = Math.random() * Math.PI * 2;
+                this.swimFreq = 0.08 + Math.random() * 0.03;
                 this.targetAngle = this.angle;
-                this.depth = Math.random();  // For layering
+                this.targetY = this.y;
+                this.depth = 0.3 + Math.random() * 0.7;
+                this.chasing = false;
+                this.hooked = false;
+                // Fight strength based on size - bigger fish fight harder
+                this.fightStrength = this.baseLength / 60; // ~0.5 for small, ~1 for medium, ~1.5+ for large
+
+                this.markings = [];
+                const numMarkings = 3 + Math.floor(Math.random() * 4);
+                for (let i = 0; i < numMarkings; i++) {
+                    this.markings.push({
+                        pos: -0.3 + Math.random() * 0.6,
+                        offset: (Math.random() - 0.5) * 0.25,
+                        size: 0.12 + Math.random() * 0.15,
+                        colorIndex: Math.floor(Math.random() * this.pattern.markings.length)
+                    });
+                }
             }
+
+            get length() { return this.baseLength * settings.fishSize * (0.7 + this.depth * 0.3); }
+            get speed() { return this.baseSpeed * settings.fishSpeed * (this.chasing ? 2.5 : 1); }
 
             update() {
-                // Gentle wobbling motion
-                this.wobble += this.wobbleSpeed;
-
-                // Occasionally change direction (very gradually)
-                if (Math.random() < 0.005) {
-                    this.targetAngle = this.angle + (Math.random() - 0.5) * Math.PI * 0.5;
+                if (this.hooked) {
+                    // Position is controlled by updateFishing()
+                    this.phase += 0.25;
+                    return;
                 }
 
-                // Slowly turn toward target angle
-                let angleDiff = this.targetAngle - this.angle;
-                while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
-                while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
-                this.angle += angleDiff * 0.02;
+                this.phase += this.swimFreq;
 
-                // Move forward
+                // Check for lure
+                if (lure && lure.inWater && !lure.hooked && castPhase === 'jigging') {
+                    const dx = lure.x - this.x;
+                    const dy = lure.y - this.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    const angleToLure = Math.atan2(dy, dx);
+                    let angleDiff = angleToLure - this.angle;
+                    while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+                    while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+
+                    if (Math.abs(angleDiff) < Math.PI / 3 && dist < 250) {
+                        this.chasing = true;
+                        this.targetAngle = angleToLure;
+                        if (dist < 25) {
+                            lure.hooked = true;
+                            this.hooked = true;
+                            hookedFish = this;
+                            castPhase = 'hooked';
+                            // Calculate initial line length as distance from fish to rod tip
+                            const tipDx = rodTipX - this.x;
+                            const tipDy = rodTipY - this.y;
+                            lineLength = Math.sqrt(tipDx * tipDx + tipDy * tipDy);
+                            maxLineLength = lineLength;
+                            fishFightTimer = 0;
+                            lastClickTime = Date.now();
+                            // Different message based on fish size
+                            if (this.fightStrength > 1.2) {
+                                showInstruction("BIG ONE! Click fast to reel in!");
+                            } else if (this.fightStrength > 0.8) {
+                                showInstruction("Fish on! Click to reel in!");
+                            } else {
+                                showInstruction("Got a small one! Click to reel in.");
+                            }
+                        }
+                    } else {
+                        this.chasing = false;
+                    }
+                } else {
+                    this.chasing = false;
+                }
+
+                if (!this.chasing && Math.random() < 0.008) {
+                    this.targetAngle = (Math.random() - 0.5) * 0.8;
+                    this.targetY = 80 + Math.random() * (height - 160);
+                }
+
+                this.angle += (this.targetAngle - this.angle) * (this.chasing ? 0.08 : 0.02);
+                this.y += (this.targetY - this.y) * 0.005;
                 this.x += Math.cos(this.angle) * this.speed;
-                this.y += Math.sin(this.angle) * this.speed;
+                this.y += Math.sin(this.angle) * this.speed * 0.3;
+                this.x -= settings.flowSpeed * 0.5;
 
-                // Soft boundary behavior - turn away from edges
-                const margin = 100;
-                if (this.x < margin) this.targetAngle = 0;
-                if (this.x > width - margin) this.targetAngle = Math.PI;
-                if (this.y < margin) this.targetAngle = Math.PI / 2;
-                if (this.y > height - margin) this.targetAngle = -Math.PI / 2;
-
-                // Wrap around if they somehow get out
-                if (this.x < -this.size * 2) this.x = width + this.size;
-                if (this.x > width + this.size * 2) this.x = -this.size;
-                if (this.y < -this.size * 2) this.y = height + this.size;
-                if (this.y > height + this.size * 2) this.y = -this.size;
+                if (this.y < 60) { this.targetY = 100 + Math.random() * 100; this.targetAngle = Math.abs(this.targetAngle); }
+                if (this.y > height - 60) { this.targetY = height - 100 - Math.random() * 100; this.targetAngle = -Math.abs(this.targetAngle); }
+                if (this.x > width + this.length * 2) { this.x = -this.length * 2; this.y = 80 + Math.random() * (height - 160); }
+                if (this.x < -this.length * 3) { this.x = -this.length * 2; }
             }
 
             draw() {
+                const brightness = settings.fishBrightness;
+                const len = this.length;
+                const bodyWidth = len * 0.22;
+
                 ctx.save();
                 ctx.translate(this.x, this.y);
                 ctx.rotate(this.angle);
 
-                const s = this.size;
-                const tailWag = Math.sin(this.wobble) * 0.3;
+                const bodyWave = Math.sin(this.phase) * (this.hooked ? 0.15 : 0.06);
+                const tailWave = Math.sin(this.phase) * (this.hooked ? 0.5 : 0.3);
 
-                // Shadow underneath
-                ctx.fillStyle = 'rgba(0,0,0,0.1)';
+                // Shadow
+                ctx.fillStyle = `rgba(0,0,0,${0.08 + 0.06 * this.depth})`;
                 ctx.beginPath();
-                ctx.ellipse(5, 8, s * 0.8, s * 0.3, 0, 0, Math.PI * 2);
+                ctx.ellipse(8, 8, len * 0.38, bodyWidth * 0.65, 0, 0, Math.PI * 2);
                 ctx.fill();
 
-                // Tail fin
-                ctx.fillStyle = this.finColor;
+                // Tail
+                ctx.fillStyle = rgbToString(this.pattern.base, brightness * 0.7);
+                const tailX = -len * 0.32;
                 ctx.beginPath();
-                ctx.moveTo(-s * 0.8, 0);
-                ctx.quadraticCurveTo(-s * 1.2, -s * 0.4 + tailWag * s * 0.3, -s * 1.4, -s * 0.3 + tailWag * s * 0.5);
-                ctx.quadraticCurveTo(-s * 1.1, tailWag * s * 0.2, -s * 1.4, s * 0.3 + tailWag * s * 0.5);
-                ctx.quadraticCurveTo(-s * 1.2, s * 0.4 + tailWag * s * 0.3, -s * 0.8, 0);
+                ctx.moveTo(tailX + len * 0.05, 0);
+                ctx.bezierCurveTo(tailX - len * 0.05, -bodyWidth * 0.2 + tailWave * bodyWidth * 0.4, tailX - len * 0.18, -bodyWidth * 0.35 + tailWave * bodyWidth * 0.8, tailX - len * 0.28, -bodyWidth * 0.45 + tailWave * bodyWidth);
+                ctx.bezierCurveTo(tailX - len * 0.22, tailWave * bodyWidth * 0.3, tailX - len * 0.22, tailWave * bodyWidth * 0.3, tailX - len * 0.28, bodyWidth * 0.45 + tailWave * bodyWidth);
+                ctx.bezierCurveTo(tailX - len * 0.18, bodyWidth * 0.35 + tailWave * bodyWidth * 0.8, tailX - len * 0.05, bodyWidth * 0.2 + tailWave * bodyWidth * 0.4, tailX + len * 0.05, 0);
                 ctx.fill();
 
                 // Body
-                ctx.fillStyle = this.bodyColor;
+                const bodyGrad = ctx.createLinearGradient(0, -bodyWidth, 0, bodyWidth);
+                bodyGrad.addColorStop(0, rgbToString(this.pattern.base, brightness * 0.85));
+                bodyGrad.addColorStop(0.5, rgbToString(this.pattern.base, brightness * 1.05));
+                bodyGrad.addColorStop(1, rgbToString(this.pattern.base, brightness * 0.85));
+                ctx.fillStyle = bodyGrad;
                 ctx.beginPath();
-                ctx.ellipse(0, 0, s, s * 0.35, 0, 0, Math.PI * 2);
+                ctx.moveTo(len * 0.42, 0);
+                ctx.bezierCurveTo(len * 0.38, -bodyWidth * 0.4, len * 0.2, -bodyWidth * 0.85 + bodyWave * bodyWidth, 0, -bodyWidth * 0.9 + bodyWave * bodyWidth);
+                ctx.bezierCurveTo(-len * 0.15, -bodyWidth * 0.8 + bodyWave * bodyWidth, -len * 0.28, -bodyWidth * 0.45 + bodyWave * bodyWidth, -len * 0.32, 0);
+                ctx.bezierCurveTo(-len * 0.28, bodyWidth * 0.45 + bodyWave * bodyWidth, -len * 0.15, bodyWidth * 0.8 + bodyWave * bodyWidth, 0, bodyWidth * 0.9 + bodyWave * bodyWidth);
+                ctx.bezierCurveTo(len * 0.2, bodyWidth * 0.85 + bodyWave * bodyWidth, len * 0.38, bodyWidth * 0.4, len * 0.42, 0);
                 ctx.fill();
 
-                // Spots/patterns
-                ctx.fillStyle = this.spotColor;
-                ctx.globalAlpha = 0.7;
-                for (let i = 0; i < 3; i++) {
-                    const spotX = -s * 0.3 + i * s * 0.35;
-                    const spotY = (Math.sin(i * 2.5) * s * 0.1);
-                    const spotSize = s * 0.15 + Math.random() * s * 0.1;
+                // Markings
+                for (const mark of this.markings) {
+                    ctx.fillStyle = rgbToString(this.pattern.markings[mark.colorIndex], brightness);
                     ctx.beginPath();
-                    ctx.ellipse(spotX, spotY, spotSize, spotSize * 0.7, 0, 0, Math.PI * 2);
+                    ctx.ellipse(mark.pos * len, mark.offset * bodyWidth * 1.5, mark.size * bodyWidth * 1.2, mark.size * bodyWidth * 0.7, 0, 0, Math.PI * 2);
                     ctx.fill();
                 }
+
+                // Fins
+                ctx.globalAlpha = 0.6;
+                ctx.fillStyle = rgbToString(this.pattern.base, brightness * 0.75);
+                const finWave = Math.sin(this.phase * 0.5) * 0.12;
+                ctx.beginPath();
+                ctx.moveTo(len * 0.12, -bodyWidth * 0.55);
+                ctx.quadraticCurveTo(len * 0.02, -bodyWidth - finWave * bodyWidth, -len * 0.1, -bodyWidth * 0.75 - finWave * bodyWidth);
+                ctx.quadraticCurveTo(len * 0.02, -bodyWidth * 0.6, len * 0.12, -bodyWidth * 0.55);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.moveTo(len * 0.12, bodyWidth * 0.55);
+                ctx.quadraticCurveTo(len * 0.02, bodyWidth + finWave * bodyWidth, -len * 0.1, bodyWidth * 0.75 + finWave * bodyWidth);
+                ctx.quadraticCurveTo(len * 0.02, bodyWidth * 0.6, len * 0.12, bodyWidth * 0.55);
+                ctx.fill();
                 ctx.globalAlpha = 1;
 
-                // Dorsal fin
-                ctx.fillStyle = this.finColor;
+                // Head
+                ctx.fillStyle = rgbToString(this.pattern.base, brightness);
                 ctx.beginPath();
-                ctx.moveTo(-s * 0.2, -s * 0.3);
-                ctx.quadraticCurveTo(0, -s * 0.6, s * 0.3, -s * 0.3);
-                ctx.quadraticCurveTo(0, -s * 0.35, -s * 0.2, -s * 0.3);
+                ctx.ellipse(len * 0.3, 0, len * 0.14, bodyWidth * 0.55, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.ellipse(len * 0.4, 0, len * 0.06, bodyWidth * 0.3, 0, 0, Math.PI * 2);
                 ctx.fill();
 
-                // Side fins
-                const finWave = Math.sin(this.wobble * 0.5) * 0.2;
+                // Eyes
+                ctx.fillStyle = '#0a0a0a';
                 ctx.beginPath();
-                ctx.moveTo(-s * 0.1, s * 0.25);
-                ctx.quadraticCurveTo(-s * 0.3, s * 0.5 + finWave * s, -s * 0.1, s * 0.6 + finWave * s * 0.5);
-                ctx.quadraticCurveTo(0, s * 0.4, -s * 0.1, s * 0.25);
+                ctx.arc(len * 0.32, -bodyWidth * 0.38, bodyWidth * 0.12, 0, Math.PI * 2);
+                ctx.arc(len * 0.32, bodyWidth * 0.38, bodyWidth * 0.12, 0, Math.PI * 2);
                 ctx.fill();
-
-                // Eye
-                ctx.fillStyle = '#222';
+                ctx.fillStyle = 'rgba(255,255,255,0.5)';
                 ctx.beginPath();
-                ctx.arc(s * 0.6, -s * 0.05, s * 0.08, 0, Math.PI * 2);
-                ctx.fill();
-
-                // Eye highlight
-                ctx.fillStyle = '#fff';
-                ctx.beginPath();
-                ctx.arc(s * 0.62, -s * 0.07, s * 0.03, 0, Math.PI * 2);
+                ctx.arc(len * 0.335, -bodyWidth * 0.4, bodyWidth * 0.035, 0, Math.PI * 2);
+                ctx.arc(len * 0.335, bodyWidth * 0.36, bodyWidth * 0.035, 0, Math.PI * 2);
                 ctx.fill();
 
                 ctx.restore();
             }
         }
 
-        // Bubble class - gentle rising bubbles
-        class Bubble {
-            constructor() {
-                this.reset();
+        class Lure {
+            constructor(startX, startY, targetX, targetY, castPower) {
+                this.startX = startX;
+                this.startY = startY;
+                this.targetX = targetX;
+                this.targetY = targetY;
+                this.castPower = castPower;
+                // Start at cast position
+                this.x = startX;
+                this.y = startY;
+                this.vx = 0;
+                this.vy = 0;
+                this.casting = true;
+                this.castProgress = 0;
+                this.inWater = false;
+                this.hooked = false;
+                this.bobPhase = 0;
             }
-
-            reset() {
-                this.x = Math.random() * width;
-                this.y = height + 20;
-                this.size = 2 + Math.random() * 6;
-                this.speed = 0.3 + Math.random() * 0.5;
-                this.wobble = Math.random() * Math.PI * 2;
-                this.wobbleSpeed = 0.02 + Math.random() * 0.02;
-            }
-
             update() {
-                this.y -= this.speed;
-                this.wobble += this.wobbleSpeed;
-                this.x += Math.sin(this.wobble) * 0.3;
+                if (this.casting) {
+                    // Slower, smoother arc - speed based on cast power
+                    this.castProgress += 0.015 + (this.castPower * 0.01);
+                    if (this.castProgress >= 1) {
+                        this.castProgress = 1;
+                        this.casting = false;
+                        this.inWater = true;
+                        this.x = this.targetX;
+                        this.y = this.targetY;
+                        splashes.push(new Splash(this.x, this.y));
+                        // Update line length to actual distance from rod tip to lure
+                        lineLength = Math.sqrt(Math.pow(this.x - rodTipX, 2) + Math.pow(this.y - rodTipY, 2));
+                        maxLineLength = lineLength;
+                        showInstruction("Move rod to jig the lure! Click to reel in.");
+                    } else {
+                        // Smooth arc trajectory
+                        const t = this.castProgress;
+                        // Ease out for smooth landing
+                        const easeT = 1 - Math.pow(1 - t, 2);
+                        const arcHeight = -250 * this.castPower * Math.sin(t * Math.PI);
+                        this.x = this.startX + (this.targetX - this.startX) * easeT;
+                        this.y = this.startY + (this.targetY - this.startY) * easeT + arcHeight;
+                    }
+                } else if (!this.hooked) {
+                    // Trailing physics - lure follows rod tip with slack
+                    const targetX = rodTipX;
+                    const targetY = rodTipY;
 
-                if (this.y < -20) {
-                    this.reset();
+                    // Calculate direction to rod tip
+                    const dx = targetX - this.x;
+                    const dy = targetY - this.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+
+                    // Line tension - lure gets pulled only if beyond line length
+                    if (dist > lineLength + 20) {
+                        const pullStrength = (dist - lineLength) * 0.1;
+                        this.vx += (dx / dist) * pullStrength;
+                        this.vy += (dy / dist) * pullStrength;
+                    }
+
+                    // Water drag
+                    this.vx *= 0.92;
+                    this.vy *= 0.92;
+
+                    // Apply velocity
+                    this.x += this.vx;
+                    this.y += this.vy;
+
+                    // Gentle bob
+                    this.bobPhase += 0.08;
+                    this.y += Math.sin(this.bobPhase) * 0.3;
+
+                    // Drift with current - stronger pull downstream
+                    this.x -= settings.flowSpeed * 1.5;
+                    this.vx -= settings.flowSpeed * 0.3;
+
+                    // Keep in bounds
+                    this.x = Math.max(50, Math.min(width - 50, this.x));
+                    this.y = Math.max(80, Math.min(height - 50, this.y));
                 }
             }
-
             draw() {
-                ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-                ctx.lineWidth = 1;
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-                ctx.stroke();
+                if (this.hooked) return; // Don't draw lure when fish is hooked
 
-                // Highlight
-                ctx.fillStyle = 'rgba(255,255,255,0.2)';
-                ctx.beginPath();
-                ctx.arc(this.x - this.size * 0.3, this.y - this.size * 0.3, this.size * 0.3, 0, Math.PI * 2);
-                ctx.fill();
-            }
-        }
-
-        // Lily pad class
-        class LilyPad {
-            constructor() {
-                this.x = Math.random() * width;
-                this.y = Math.random() * height;
-                this.size = 40 + Math.random() * 30;
-                this.rotation = Math.random() * Math.PI * 2;
-                this.rotationSpeed = (Math.random() - 0.5) * 0.001;
-                this.wobble = Math.random() * Math.PI * 2;
-            }
-
-            update() {
-                this.rotation += this.rotationSpeed;
-                this.wobble += 0.01;
-                // Gentle floating motion
-                this.x += Math.sin(this.wobble) * 0.1;
-                this.y += Math.cos(this.wobble * 0.7) * 0.05;
-            }
-
-            draw() {
                 ctx.save();
                 ctx.translate(this.x, this.y);
-                ctx.rotate(this.rotation);
 
-                // Pad
-                ctx.fillStyle = '#3d6b4f';
+                // Lure body
+                ctx.fillStyle = '#ffaa44';
                 ctx.beginPath();
-                ctx.arc(0, 0, this.size, 0.2, Math.PI * 2 - 0.2);
-                ctx.lineTo(0, 0);
+                ctx.ellipse(0, 0, 10, 6, 0, 0, Math.PI * 2);
                 ctx.fill();
 
-                // Lighter center
-                ctx.fillStyle = '#4a7d5e';
+                // Hook
+                ctx.strokeStyle = '#888';
+                ctx.lineWidth = 2;
                 ctx.beginPath();
-                ctx.arc(0, 0, this.size * 0.6, 0, Math.PI * 2);
-                ctx.fill();
+                ctx.arc(6, 4, 6, -Math.PI * 0.3, Math.PI * 0.8);
+                ctx.stroke();
 
-                // Vein lines
-                ctx.strokeStyle = '#2d5a3f';
-                ctx.lineWidth = 1;
-                for (let i = 0; i < 6; i++) {
-                    const angle = (i / 6) * Math.PI * 2 + 0.3;
-                    ctx.beginPath();
-                    ctx.moveTo(0, 0);
-                    ctx.lineTo(Math.cos(angle) * this.size * 0.8, Math.sin(angle) * this.size * 0.8);
-                    ctx.stroke();
-                }
+                // Feather tail
+                ctx.fillStyle = '#ff4444';
+                ctx.beginPath();
+                ctx.moveTo(-10, 0);
+                ctx.lineTo(-18, -5);
+                ctx.lineTo(-14, 0);
+                ctx.lineTo(-18, 5);
+                ctx.closePath();
+                ctx.fill();
 
                 ctx.restore();
             }
         }
 
-        // Water ripple effect
-        class Ripple {
-            constructor(x, y) {
-                this.x = x;
-                this.y = y;
-                this.size = 0;
-                this.maxSize = 50 + Math.random() * 50;
-                this.alpha = 0.3;
+        class StreamRipple {
+            constructor() { this.reset(); }
+            reset() {
+                this.x = width + 50 + Math.random() * 100;
+                this.y = Math.random() * height;
+                this.size = 5 + Math.random() * 15;
+                this.maxSize = this.size + 20 + Math.random() * 30;
+                this.alpha = 0.12 + Math.random() * 0.08;
             }
-
             update() {
-                this.size += 0.5;
-                this.alpha -= 0.003;
-                return this.alpha > 0;
+                this.x -= settings.flowSpeed * 1.2;
+                this.size += 0.3;
+                this.alpha -= 0.001;
+                if (this.x < -this.maxSize || this.size > this.maxSize || this.alpha <= 0) this.reset();
             }
-
             draw() {
+                if (this.alpha <= 0) return;
                 ctx.strokeStyle = `rgba(255,255,255,${this.alpha})`;
                 ctx.lineWidth = 1;
                 ctx.beginPath();
@@ -335,175 +603,740 @@
             }
         }
 
-        // Initialize objects
+        class Splash {
+            constructor(x, y) {
+                this.x = x; this.y = y;
+                this.particles = [];
+                for (let i = 0; i < 6; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = 1.5 + Math.random() * 2.5;
+                    this.particles.push({ x: 0, y: 0, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, size: 2 + Math.random() * 3, alpha: 0.5 });
+                }
+                this.life = 40;
+            }
+            update() {
+                this.life--;
+                for (const p of this.particles) {
+                    p.x += p.vx; p.y += p.vy;
+                    p.vx *= 0.94; p.vy *= 0.94;
+                    p.alpha -= 0.012;
+                }
+                return this.life > 0;
+            }
+            draw() {
+                for (const p of this.particles) {
+                    if (p.alpha <= 0) continue;
+                    ctx.fillStyle = `rgba(255,255,255,${p.alpha})`;
+                    ctx.beginPath();
+                    ctx.arc(this.x + p.x, this.y + p.y, p.size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+        }
+
         let fish = [];
-        let bubbles = [];
-        let lilyPads = [];
         let ripples = [];
+        let splashes = [];
 
         function init() {
-            fish = [];
-            bubbles = [];
-            lilyPads = [];
-            ripples = [];
-
-            // Create fish
-            for (let i = 0; i < 6; i++) {
-                fish.push(new Koi());
+            fish = []; ripples = []; splashes = [];
+            for (let i = 0; i < settings.fishCount; i++) {
+                const f = new Koi();
+                f.x = Math.random() * width;
+                fish.push(f);
             }
-
-            // Create bubbles
-            for (let i = 0; i < 10; i++) {
-                const b = new Bubble();
-                b.y = Math.random() * height;  // Start at random heights
-                bubbles.push(b);
-            }
-
-            // Create lily pads
-            for (let i = 0; i < 4; i++) {
-                lilyPads.push(new LilyPad());
+            for (let i = 0; i < 8; i++) {
+                const r = new StreamRipple();
+                r.x = Math.random() * width;
+                ripples.push(r);
             }
         }
-
         init();
 
-        // Occasionally add ripples
-        setInterval(() => {
-            if (Math.random() < 0.3) {
-                ripples.push(new Ripple(Math.random() * width, Math.random() * height));
-            }
-        }, 2000);
+        setInterval(() => { if (ripples.length < 12) ripples.push(new StreamRipple()); }, 800);
 
-        // Draw water gradient background
         function drawWater() {
+            const darkness = settings.waterDarkness;
+            const r = Math.floor(25 + (1 - darkness) * 35);
+            const g = Math.floor(60 + (1 - darkness) * 45);
+            const b = Math.floor(70 + (1 - darkness) * 45);
             const gradient = ctx.createLinearGradient(0, 0, 0, height);
-            gradient.addColorStop(0, '#1a4a5e');
-            gradient.addColorStop(0.5, '#1a3d4d');
-            gradient.addColorStop(1, '#153040');
+            gradient.addColorStop(0, `rgb(${r + 10}, ${g + 15}, ${b + 15})`);
+            gradient.addColorStop(1, `rgb(${r - 5}, ${g - 5}, ${b})`);
             ctx.fillStyle = gradient;
             ctx.fillRect(0, 0, width, height);
+        }
 
-            // Subtle caustic light effect
-            ctx.fillStyle = 'rgba(255,255,255,0.02)';
-            const time = Date.now() * 0.0005;
-            for (let i = 0; i < 5; i++) {
-                const x = (Math.sin(time + i) * 0.5 + 0.5) * width;
-                const y = (Math.cos(time * 0.7 + i * 2) * 0.5 + 0.5) * height;
+        // Draw a realistic fishing rod with bending
+        function drawRod(baseX, baseY, tipX, tipY, bendAmount, tension) {
+            ctx.save();
+
+            const dx = tipX - baseX;
+            const dy = tipY - baseY;
+            const rodAngle = Math.atan2(dy, dx);
+            const rodLength = Math.sqrt(dx * dx + dy * dy);
+
+            // Calculate bend control point (perpendicular to rod, toward the pull)
+            const bendOffsetX = Math.cos(rodAngle + Math.PI/2) * bendAmount * 60;
+            const bendOffsetY = Math.sin(rodAngle + Math.PI/2) * bendAmount * 60;
+
+            // Rod sections (thick to thin)
+            const sections = 5;
+            for (let i = 0; i < sections; i++) {
+                const t1 = i / sections;
+                const t2 = (i + 1) / sections;
+
+                // Calculate points along bent rod using quadratic bezier
+                const cp1x = baseX + dx * 0.5 + bendOffsetX;
+                const cp1y = baseY + dy * 0.5 + bendOffsetY;
+
+                const x1 = Math.pow(1-t1, 2) * baseX + 2 * (1-t1) * t1 * cp1x + Math.pow(t1, 2) * tipX;
+                const y1 = Math.pow(1-t1, 2) * baseY + 2 * (1-t1) * t1 * cp1y + Math.pow(t1, 2) * tipY;
+                const x2 = Math.pow(1-t2, 2) * baseX + 2 * (1-t2) * t2 * cp1x + Math.pow(t2, 2) * tipX;
+                const y2 = Math.pow(1-t2, 2) * baseY + 2 * (1-t2) * t2 * cp1y + Math.pow(t2, 2) * tipY;
+
+                // Thickness tapers from 8 to 2
+                const thickness = 8 - (i * 1.2);
+
+                // Color gradient: cork handle -> dark rod -> lighter tip
+                if (i === 0) {
+                    ctx.strokeStyle = '#c4956a'; // Cork handle
+                } else if (i < 3) {
+                    ctx.strokeStyle = '#2a2a2a'; // Dark graphite
+                } else {
+                    ctx.strokeStyle = '#4a4a4a'; // Lighter tip
+                }
+
+                ctx.lineWidth = thickness;
+                ctx.lineCap = 'round';
                 ctx.beginPath();
-                ctx.ellipse(x, y, 200, 100, time + i, 0, Math.PI * 2);
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.stroke();
+
+                // Guide rings
+                if (i > 0 && i < sections - 1) {
+                    ctx.fillStyle = '#888';
+                    ctx.beginPath();
+                    ctx.arc(x2, y2, thickness * 0.6, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            // Reel seat (near handle)
+            const reelSeatT = 0.08;
+            const cp1x = baseX + dx * 0.5 + bendOffsetX;
+            const cp1y = baseY + dy * 0.5 + bendOffsetY;
+            const reelSeatX = Math.pow(1-reelSeatT, 2) * baseX + 2 * (1-reelSeatT) * reelSeatT * cp1x + Math.pow(reelSeatT, 2) * tipX;
+            const reelSeatY = Math.pow(1-reelSeatT, 2) * baseY + 2 * (1-reelSeatT) * reelSeatT * cp1y + Math.pow(reelSeatT, 2) * tipY;
+
+            ctx.restore();
+
+            return { reelSeatX, reelSeatY, tipX, tipY };
+        }
+
+        // Draw the spinning reel
+        function drawReel(x, y, angle, showProgress, progress) {
+            ctx.save();
+            ctx.translate(x, y);
+
+            // Reel body
+            ctx.fillStyle = '#333';
+            ctx.beginPath();
+            ctx.ellipse(0, 0, 25, 20, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Reel frame
+            ctx.strokeStyle = '#555';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.ellipse(0, 0, 25, 20, 0, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Spool
+            ctx.fillStyle = '#444';
+            ctx.beginPath();
+            ctx.arc(0, 0, 15, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Line on spool
+            ctx.strokeStyle = 'rgba(200,200,200,0.5)';
+            ctx.lineWidth = 8;
+            ctx.beginPath();
+            ctx.arc(0, 0, 10, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Handle
+            ctx.save();
+            ctx.rotate(angle);
+            ctx.fillStyle = '#222';
+            ctx.beginPath();
+            ctx.moveTo(15, 0);
+            ctx.lineTo(30, 0);
+            ctx.lineTo(30, 3);
+            ctx.lineTo(15, 3);
+            ctx.closePath();
+            ctx.fill();
+            // Handle knob
+            ctx.fillStyle = '#111';
+            ctx.beginPath();
+            ctx.arc(32, 1.5, 6, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+
+            // Progress indicator when fighting fish
+            if (showProgress) {
+                ctx.strokeStyle = progress > 0.7 ? '#f55' : progress > 0.4 ? '#fa5' : '#5a5';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.arc(0, 0, 30, -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2);
+                ctx.stroke();
+            }
+
+            ctx.restore();
+        }
+
+        function drawFishingUI() {
+            if (!fishingMode) return;
+
+            ctx.save();
+
+            // Rod tip always follows cursor
+            const angleToMouse = Math.atan2(mouseY - rodBaseY, mouseX - rodBaseX);
+            rodTipX = rodBaseX + Math.cos(angleToMouse) * ROD_LENGTH;
+            rodTipY = rodBaseY + Math.sin(angleToMouse) * ROD_LENGTH;
+
+            // Calculate rod bend based on fish tension
+            let currentBend = 0;
+            if (castPhase === 'hooked' && hookedFish) {
+                currentBend = hookedFish.fightStrength * (0.3 + Math.sin(fishFightTimer * 0.1) * 0.2);
+            }
+            rodBend = rodBend * 0.9 + currentBend * 0.1;
+
+            // Draw the rod
+            drawRod(rodBaseX, rodBaseY, rodTipX, rodTipY, rodBend, currentBend);
+
+            // Draw reel near rod base
+            drawReel(
+                rodBaseX - 20,
+                rodBaseY - 10,
+                reelAngle,
+                castPhase === 'hooked' && maxLineLength > 0,
+                maxLineLength > 0 ? lineLength / maxLineLength : 0
+            );
+
+            // Draw line from rod tip to target
+            ctx.strokeStyle = 'rgba(180,180,180,0.6)';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(rodTipX, rodTipY);
+
+            if (castPhase === 'hooked' && hookedFish) {
+                ctx.lineTo(hookedFish.x, hookedFish.y);
+                ctx.stroke();
+            } else if (lure) {
+                ctx.lineTo(lure.x, lure.y);
+                ctx.stroke();
+            } else {
+                // No lure yet - show dashed line to cursor with lure preview
+                ctx.setLineDash([5, 5]);
+                ctx.lineTo(mouseX, mouseY);
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                // Lure preview at cursor
+                ctx.globalAlpha = 0.6;
+                ctx.fillStyle = '#ffaa44';
+                ctx.beginPath();
+                ctx.ellipse(mouseX, mouseY, 10, 6, 0, 0, Math.PI * 2);
                 ctx.fill();
+                ctx.globalAlpha = 1;
+            }
+
+            // Draw caught fish stacked at the bottom
+            drawCaughtFish();
+
+            ctx.restore();
+        }
+
+        function drawCaughtFish() {
+            const startX = width - 100;
+            const y = height - 40;
+            const spacing = 45;
+
+            for (let i = 0; i < caughtFish.length; i++) {
+                const f = caughtFish[i];
+                const x = startX - (i * spacing);
+
+                if (x < 50) break; // Don't draw off screen
+
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.scale(0.35, 0.35);
+
+                const len = f.baseLength;
+                const bodyWidth = len * 0.22;
+
+                // Body
+                ctx.fillStyle = rgbToString(f.pattern.base, 1);
+                ctx.beginPath();
+                ctx.ellipse(0, 0, len * 0.35, bodyWidth, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Tail
+                ctx.beginPath();
+                ctx.moveTo(-len * 0.25, 0);
+                ctx.lineTo(-len * 0.45, -bodyWidth * 0.6);
+                ctx.lineTo(-len * 0.45, bodyWidth * 0.6);
+                ctx.closePath();
+                ctx.fill();
+
+                // Eye
+                ctx.fillStyle = '#000';
+                ctx.beginPath();
+                ctx.arc(len * 0.15, 0, bodyWidth * 0.15, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.restore();
             }
         }
 
-        // Main animation loop
+        function updateFishing() {
+            // Update rod tip position for jigging - full 360 rotation
+            if (castPhase === 'jigging' || castPhase === 'hooked') {
+                const angleToMouse = Math.atan2(mouseY - rodBaseY, mouseX - rodBaseX);
+                rodTipX = rodBaseX + Math.cos(angleToMouse) * ROD_LENGTH;
+                rodTipY = rodBaseY + Math.sin(angleToMouse) * ROD_LENGTH;
+            }
+
+            // Check if line fully reeled in during jigging (no fish)
+            if (castPhase === 'jigging' && lineLength <= 20) {
+                // Fully reeled in, click to drop lure again
+                showInstruction("Line reeled in! Click to drop your lure.");
+                castPhase = 'ready';
+                lure = null;
+                lineLength = 0;
+                return;
+            }
+
+            if (!fishingMode || castPhase !== 'hooked' || !hookedFish) return;
+
+            fishFightTimer++;
+
+            // Fish fights back - bigger fish need faster clicking
+            const now = Date.now();
+            const timeSinceClick = now - lastClickTime;
+
+            // Click threshold scales with fish size (bigger fish = need faster clicks)
+            // Small fish: ~400ms between clicks ok (very easy)
+            // Medium fish: ~250ms between clicks
+            // Large fish: ~180ms between clicks
+            const baseThreshold = 350;
+            const clickThreshold = baseThreshold / hookedFish.fightStrength;
+
+            // Fight strength varies over time (fish surges)
+            const currentFight = hookedFish.fightStrength * (0.4 + Math.sin(fishFightTimer * 0.06) * 0.2 + Math.random() * 0.15);
+
+            // If not clicking fast enough, fish pulls line out (slower than before)
+            if (timeSinceClick > clickThreshold) {
+                lineLength += currentFight * 1.5;
+                reelAngle -= 0.05 * currentFight; // Reel spins backward
+            }
+
+            // No cap on line length - fish can pull as far as it wants
+
+            // Update fish position - fish is pulled toward rod tip
+            const targetX = rodTipX;
+            const targetY = rodTipY;
+            const dx = targetX - hookedFish.x;
+            const dy = targetY - hookedFish.y;
+            const currentDist = Math.sqrt(dx * dx + dy * dy);
+
+            if (currentDist > 10) {
+                // Fish position based on line length from rod tip
+                const targetDist = lineLength;
+                const moveSpeed = (currentDist - targetDist) * 0.03;
+                const angle = Math.atan2(dy, dx);
+                hookedFish.x += Math.cos(angle) * moveSpeed;
+                hookedFish.y += Math.sin(angle) * moveSpeed;
+
+                // Fish wiggles while being reeled - bigger fish wiggle more
+                const wiggleAmount = 0.2 + hookedFish.fightStrength * 0.15;
+                hookedFish.angle = Math.atan2(-dy, -dx) + Math.sin(fishFightTimer * 0.3) * wiggleAmount;
+            }
+
+            // Keep fish in vertical bounds only (can escape horizontally)
+            hookedFish.y = Math.max(50, Math.min(height - 50, hookedFish.y));
+
+            // Check if fish escaped off the left side of the screen (away from rod on right)
+            const escaped = hookedFish.x < -50;
+
+            if (escaped) {
+                // Fish got away!
+                showInstruction("The fish got away! Click to reel in your lure.");
+                hookedFish.hooked = false;
+
+                // Create lure at left edge of screen where fish escaped
+                const edgeX = 50;
+                const edgeY = hookedFish.y; // Same Y position as where fish escaped
+                lure = new Lure(edgeX, edgeY, edgeX, edgeY, 0);
+                lure.casting = false;
+                lure.inWater = true;
+                lure.hooked = false;
+                lure.x = edgeX;
+                lure.y = edgeY;
+                lure.vx = 0;
+                lure.vy = 0;
+
+                hookedFish = null;
+                castPhase = 'jigging';
+
+                // Calculate line length from rod tip to lure
+                lineLength = Math.sqrt(Math.pow(lure.x - rodTipX, 2) + Math.pow(lure.y - rodTipY, 2));
+                maxLineLength = lineLength;
+                return;
+            }
+
+            // Check if caught (fish reaches rod tip area)
+            if (lineLength <= 40) {
+                // Add fish to caught collection
+                caughtFish.push({
+                    baseLength: hookedFish.baseLength,
+                    pattern: hookedFish.pattern
+                });
+                showCatchMessage();
+
+                // Remove from swimming fish and add new one
+                fish = fish.filter(f => f !== hookedFish);
+                fish.push(new Koi());
+
+                hookedFish = null;
+                lure = null;
+                castPhase = 'ready';
+                lineLength = 0;
+                maxLineLength = 0;
+            }
+        }
+
+        function updateFishCount() {
+            while (fish.length > settings.fishCount) fish.pop();
+            while (fish.length < settings.fishCount) {
+                const f = new Koi();
+                f.x = -100 - Math.random() * 200;
+                fish.push(f);
+            }
+        }
+
         function animate() {
             drawWater();
 
-            // Update and draw lily pads (behind fish)
-            lilyPads.forEach(pad => {
-                pad.update();
-                pad.draw();
-            });
+            ripples.forEach(r => { r.update(); r.draw(); });
 
-            // Update and draw ripples
-            ripples = ripples.filter(r => {
-                r.draw();
-                return r.update();
-            });
+            splashes = splashes.filter(s => { s.draw(); return s.update(); });
 
-            // Sort fish by depth for proper layering
+            if (lure) { lure.update(); lure.draw(); }
+
             fish.sort((a, b) => a.depth - b.depth);
+            fish.forEach(f => { f.update(); f.draw(); });
 
-            // Update and draw fish
-            fish.forEach(f => {
-                f.update();
-                f.draw();
-            });
-
-            // Update and draw bubbles (in front)
-            bubbles.forEach(b => {
-                b.update();
-                b.draw();
-            });
+            drawFishingUI();
+            updateFishing();
 
             requestAnimationFrame(animate);
         }
-
         animate();
 
-        // Sound functions (gentle water ambience)
+        function showInstruction(text) {
+            const el = document.getElementById('instructions');
+            el.textContent = text;
+            el.classList.add('visible');
+            setTimeout(() => el.classList.remove('visible'), 3000);
+        }
+
+        function toggleFishing() {
+            fishingMode = !fishingMode;
+            document.getElementById('fish-btn').classList.toggle('active', fishingMode);
+            if (fishingMode) {
+                // Set up rod position on the right side
+                rodBaseX = width - 60;
+                rodBaseY = height / 2 + 50;
+                castPhase = 'ready';
+                caughtFish = [];
+                showInstruction("Click anywhere to drop your lure!");
+            } else {
+                castPhase = 'ready';
+                lure = null;
+                hookedFish = null;
+                lineLength = 0;
+                maxLineLength = 0;
+                rodBend = 0;
+                caughtFish = [];
+                fish.forEach(f => { f.hooked = false; f.chasing = false; });
+            }
+        }
+
+        canvas.addEventListener('mousedown', (e) => {
+            if (!fishingMode) return;
+
+            if (castPhase === 'hooked') {
+                // Reel in the fish
+                lastClickTime = Date.now();
+                const baseReelAmount = 25;
+                const reelAmount = baseReelAmount / (hookedFish ? hookedFish.fightStrength : 1);
+                lineLength -= reelAmount;
+                if (lineLength < 0) lineLength = 0;
+                reelAngle += 0.5;
+                return;
+            }
+
+            if (castPhase === 'jigging') {
+                // Click to reel in line
+                lastClickTime = Date.now();
+                lineLength -= 15;
+                if (lineLength < 0) lineLength = 0;
+                reelAngle += 0.4;
+                return;
+            }
+
+            if (castPhase === 'ready') {
+                // Single click places the lure at cursor position
+                const targetX = Math.max(80, Math.min(width - 150, e.clientX));
+                const targetY = Math.max(80, Math.min(height - 120, e.clientY));
+
+                // Create lure at click position
+                lure = new Lure(targetX, targetY, targetX, targetY, 0);
+                lure.casting = false;
+                lure.inWater = true;
+                lure.x = targetX;
+                lure.y = targetY;
+
+                // Calculate line length from rod tip to lure
+                lineLength = Math.sqrt(Math.pow(targetX - rodTipX, 2) + Math.pow(targetY - rodTipY, 2));
+                maxLineLength = lineLength;
+
+                // Small splash
+                splashes.push(new Splash(targetX, targetY));
+
+                castPhase = 'jigging';
+            }
+        });
+
+        function showCatchMessage() {
+            const msgs = ['Nice catch!', 'Got one!', 'Great job!', 'Beauty!'];
+            const el = document.getElementById('catch-message');
+            el.textContent = msgs[Math.floor(Math.random() * msgs.length)];
+            el.classList.add('visible');
+            setTimeout(() => el.classList.remove('visible'), 1500);
+        }
+
+        function toggleSettings() {
+            settingsOpen = !settingsOpen;
+            document.getElementById('settings-panel').classList.toggle('open', settingsOpen);
+            document.getElementById('overlay').classList.toggle('open', settingsOpen);
+        }
+
+        function updateSettingDisplay(id, value, labels) {
+            const el = document.getElementById(id + '-val');
+            const index = Math.floor(value / 100 * (labels.length - 0.01));
+            el.textContent = labels[Math.min(index, labels.length - 1)];
+        }
+
+        document.getElementById('flow-speed').addEventListener('input', (e) => {
+            settings.flowSpeed = parseInt(e.target.value) / 100 * 1.5;
+            updateSettingDisplay('flow-speed', parseInt(e.target.value), ['Still', 'Barely moving', 'Gentle', 'Moderate', 'Swift']);
+        });
+        document.getElementById('fish-speed').addEventListener('input', (e) => {
+            settings.fishSpeed = 0.3 + (parseInt(e.target.value) / 100) * 1.2;
+            updateSettingDisplay('fish-speed', parseInt(e.target.value), ['Very slow', 'Slow', 'Leisurely', 'Normal', 'Active']);
+        });
+        document.getElementById('fish-size').addEventListener('input', (e) => {
+            settings.fishSize = 0.5 + (parseInt(e.target.value) / 100) * 1.0;
+            updateSettingDisplay('fish-size', parseInt(e.target.value), ['Tiny', 'Small', 'Medium', 'Large', 'Very large']);
+        });
+        document.getElementById('fish-count').addEventListener('input', (e) => {
+            settings.fishCount = parseInt(e.target.value);
+            updateFishCount();
+            document.getElementById('fish-count-val').textContent = settings.fishCount + ' fish';
+        });
+        document.getElementById('fish-brightness').addEventListener('input', (e) => {
+            settings.fishBrightness = 0.5 + (parseInt(e.target.value) / 100) * 1.0;
+            updateSettingDisplay('fish-brightness', parseInt(e.target.value), ['Dark', 'Dim', 'Normal', 'Bright', 'Very bright']);
+        });
+        document.getElementById('water-darkness').addEventListener('input', (e) => {
+            settings.waterDarkness = parseInt(e.target.value) / 100;
+            updateSettingDisplay('water-darkness', parseInt(e.target.value), ['Light', 'Pale', 'Normal', 'Dark', 'Very dark']);
+        });
+
+        function resetSettings() {
+            document.getElementById('flow-speed').value = 30;
+            document.getElementById('fish-speed').value = 60;
+            document.getElementById('fish-size').value = 50;
+            document.getElementById('fish-count').value = 5;
+            document.getElementById('fish-brightness').value = 50;
+            document.getElementById('water-darkness').value = 50;
+            settings = { flowSpeed: 0.5, fishSpeed: 0.8, fishSize: 1.0, fishCount: 5, fishBrightness: 1.0, waterDarkness: 0.5 };
+            updateFishCount();
+        }
+
+        // ===== AUDIO =====
+        let audioNodes = null;
+        let trickleIntervals = [];
+
         function initAudio() {
             if (audioCtx) return;
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         }
 
-        function playWaterSound() {
-            if (!soundEnabled || !audioCtx) return;
+        function createBrookSound() {
+            if (!audioCtx) return null;
+            const masterGain = audioCtx.createGain();
+            masterGain.gain.value = 0.08;
+            masterGain.connect(audioCtx.destination);
 
-            // Create gentle noise for water ambience
-            const bufferSize = audioCtx.sampleRate * 2;
-            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-            const data = buffer.getChannelData(0);
+            // Soft pink noise for water ambiance
+            const noiseSize = audioCtx.sampleRate * 3;
+            const noiseBuffer = audioCtx.createBuffer(1, noiseSize, audioCtx.sampleRate);
+            const noiseData = noiseBuffer.getChannelData(0);
+            let b0=0,b1=0,b2=0,b3=0,b4=0,b5=0,b6=0;
+            for (let i = 0; i < noiseSize; i++) {
+                const white = Math.random() * 2 - 1;
+                b0 = 0.99886*b0 + white*0.0555179;
+                b1 = 0.99332*b1 + white*0.0750759;
+                b2 = 0.96900*b2 + white*0.1538520;
+                b3 = 0.86650*b3 + white*0.3104856;
+                b4 = 0.55000*b4 + white*0.5329522;
+                b5 = -0.7616*b5 - white*0.0168980;
+                noiseData[i] = (b0+b1+b2+b3+b4+b5+b6+white*0.5362) * 0.04;
+                b6 = white * 0.115926;
+            }
+            const noiseSource = audioCtx.createBufferSource();
+            noiseSource.buffer = noiseBuffer;
+            noiseSource.loop = true;
+            const lpf = audioCtx.createBiquadFilter();
+            lpf.type = 'lowpass';
+            lpf.frequency.value = 250;
+            const noiseGain = audioCtx.createGain();
+            noiseGain.gain.value = 0.1;
+            noiseSource.connect(lpf);
+            lpf.connect(noiseGain);
+            noiseGain.connect(masterGain);
+            noiseSource.start();
 
-            for (let i = 0; i < bufferSize; i++) {
-                data[i] = (Math.random() * 2 - 1) * 0.1;
+            const dripGain = audioCtx.createGain();
+            dripGain.gain.value = 0.15;
+            dripGain.connect(masterGain);
+
+            // Water drip sound - cats love these high pitched quick sounds
+            function createDrip() {
+                if (!audioCtx || !soundEnabled) return;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                const freq = 1200 + Math.random() * 800; // Higher pitch, more engaging
+                osc.frequency.value = freq;
+                osc.type = 'sine';
+                gain.gain.value = 0;
+                osc.connect(gain);
+                gain.connect(dripGain);
+                const now = audioCtx.currentTime;
+                const dur = 0.04 + Math.random() * 0.05;
+                gain.gain.setValueAtTime(0, now);
+                gain.gain.linearRampToValueAtTime(0.08, now + 0.004);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+                osc.frequency.exponentialRampToValueAtTime(freq * 0.4, now + dur);
+                osc.start(now);
+                osc.stop(now + dur + 0.01);
             }
 
-            const source = audioCtx.createBufferSource();
-            source.buffer = buffer;
-            source.loop = true;
+            // Bubble pop sound - cats find these intriguing
+            function createBubble() {
+                if (!audioCtx || !soundEnabled) return;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                const freq = 2000 + Math.random() * 1500; // Very high pitch
+                osc.frequency.value = freq;
+                osc.type = 'sine';
+                gain.gain.value = 0;
+                osc.connect(gain);
+                gain.connect(dripGain);
+                const now = audioCtx.currentTime;
+                gain.gain.setValueAtTime(0, now);
+                gain.gain.linearRampToValueAtTime(0.04, now + 0.002);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.02);
+                osc.frequency.setValueAtTime(freq, now);
+                osc.frequency.exponentialRampToValueAtTime(freq * 0.3, now + 0.015);
+                osc.start(now);
+                osc.stop(now + 0.03);
+            }
 
-            const filter = audioCtx.createBiquadFilter();
-            filter.type = 'lowpass';
-            filter.frequency.value = 400;
+            // Fish splash sound
+            function createSplash() {
+                if (!audioCtx || !soundEnabled) return;
+                // White noise burst
+                const bufferSize = audioCtx.sampleRate * 0.1;
+                const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.15));
+                }
+                const source = audioCtx.createBufferSource();
+                source.buffer = buffer;
+                const splashGain = audioCtx.createGain();
+                splashGain.gain.value = 0.08;
+                const hpf = audioCtx.createBiquadFilter();
+                hpf.type = 'highpass';
+                hpf.frequency.value = 800;
+                source.connect(hpf);
+                hpf.connect(splashGain);
+                splashGain.connect(masterGain);
+                source.start();
+            }
 
-            const gain = audioCtx.createGain();
-            gain.gain.value = 0.05;
+            function scheduleDrips() {
+                if (!soundEnabled) return;
+                createDrip();
+                // Sometimes double drip
+                if (Math.random() < 0.4) setTimeout(createDrip, 25 + Math.random() * 50);
+                // Occasional bubble
+                if (Math.random() < 0.15) setTimeout(createBubble, Math.random() * 100);
+                trickleIntervals.push(setTimeout(scheduleDrips, 100 + Math.random() * 200));
+            }
 
-            source.connect(filter);
-            filter.connect(gain);
-            gain.connect(audioCtx.destination);
+            // Occasional fish splash sounds
+            function scheduleSplashes() {
+                if (!soundEnabled) return;
+                if (Math.random() < 0.3) createSplash();
+                trickleIntervals.push(setTimeout(scheduleSplashes, 3000 + Math.random() * 5000));
+            }
 
-            source.start();
-            return { source, gain };
+            scheduleDrips();
+            scheduleSplashes();
+
+            return { masterGain, noiseSource };
         }
-
-        let currentSound = null;
 
         function toggleSound() {
             soundEnabled = !soundEnabled;
             if (soundEnabled) {
                 initAudio();
-                currentSound = playWaterSound();
-            } else if (currentSound) {
-                currentSound.gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.5);
-                setTimeout(() => {
-                    currentSound.source.stop();
-                    currentSound = null;
-                }, 500);
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                audioNodes = createBrookSound();
+            } else {
+                trickleIntervals.forEach(id => clearTimeout(id));
+                trickleIntervals = [];
+                if (audioNodes) {
+                    audioNodes.masterGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.3);
+                    setTimeout(() => { if (audioNodes?.noiseSource) audioNodes.noiseSource.stop(); audioNodes = null; }, 400);
+                }
             }
-        }
-
-        function addFish() {
-            fish.push(new Koi());
         }
 
         function toggleFullscreen() {
-            if (!document.fullscreenElement) {
-                document.documentElement.requestFullscreen();
-            } else {
-                document.exitFullscreen();
-            }
+            if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+            else document.exitFullscreen();
         }
 
-        // Hide cursor after inactivity
-        let cursorTimeout;
-        document.addEventListener('mousemove', () => {
-            document.body.style.cursor = 'auto';
-            clearTimeout(cursorTimeout);
-            cursorTimeout = setTimeout(() => {
-                document.body.style.cursor = 'none';
-            }, 3000);
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && settingsOpen) toggleSettings();
         });
     </script>
 </body>
